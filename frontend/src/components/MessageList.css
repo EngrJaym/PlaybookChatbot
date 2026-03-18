@@ -61,6 +61,39 @@
   color: #1e293b;
 }
 
+.msg-citation {
+  margin-top: 9px;
+  padding-top: 8px;
+  border-top: 1px dashed #d7e4f8;
+  font-size: 11px;
+  line-height: 1.35;
+  color: #5b6f91;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.msg-citation__label {
+  font-weight: 700;
+  color: #37568b;
+}
+
+.msg-citation__value {
+  color: #4a638b;
+}
+
+.msg-citation__match {
+  margin-left: auto;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  font-size: 10px;
+  color: #4b6fb3;
+  background: #eaf1ff;
+  border: 1px solid #d2e0fa;
+  border-radius: 999px;
+  padding: 1px 6px;
+}
+
 .msg-para {
   margin: 5px 0;
 }

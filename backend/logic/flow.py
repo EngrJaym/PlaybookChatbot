@@ -32,6 +32,7 @@ _HEADING_STYLES = {"HEADING_1", "HEADING_2", "HEADING_3", "HEADING_4", "TITLE"}
 _FLOW:         dict[str, dict] = {}
 _META:         dict            = {}
 _SOURCE:       str             = "unknown"
+_CITATIONS:    dict[str, dict] = {}
 _docs_service                  = None
 
 logger = logging.getLogger(__name__)
@@ -102,25 +103,30 @@ def _paragraph_text(paragraph: dict) -> str:
     return "".join(parts).rstrip("\n")
 
 
-def _extract_doc_sections(doc: dict) -> dict[str, str]:
-    """Return { normalised_heading → body_text }. Tables are skipped."""
-    sections:        dict[str, str] = {}
-    current_heading: Optional[str]  = None
-    body_lines:      list[str]      = []
+def _extract_doc_sections(doc: dict) -> dict[str, dict[str, str]]:
+    """Return { normalised_heading: {heading, body} }. Tables are skipped."""
+    sections:             dict[str, dict[str, str]] = {}
+    current_heading_norm: Optional[str]             = None
+    current_heading_text: Optional[str]             = None
+    body_lines:           list[str]                 = []
 
     def _flush() -> None:
-        nonlocal current_heading, body_lines
-        if current_heading is not None:
+        nonlocal current_heading_norm, current_heading_text, body_lines
+        if current_heading_norm is not None:
             content = "\n".join(body_lines).strip()
             if content:
-                sections[current_heading] = (
-                    sections[current_heading] + "\n" + content
-                    if current_heading in sections else content
-                )
+                existing = sections.get(current_heading_norm)
+                if existing:
+                    existing["body"] = f'{existing["body"]}\n{content}'
+                else:
+                    sections[current_heading_norm] = {
+                        "heading": current_heading_text or current_heading_norm,
+                        "body": content,
+                    }
         body_lines.clear()
 
     def _walk(elements: list) -> None:
-        nonlocal current_heading
+        nonlocal current_heading_norm, current_heading_text
         for el in elements:
             if "table" in el:
                 continue
@@ -132,8 +138,9 @@ def _extract_doc_sections(doc: dict) -> dict[str, str]:
                     continue
                 if style in _HEADING_STYLES:
                     _flush()
-                    current_heading = _normalize(text)
-                elif current_heading is not None:
+                    current_heading_norm = _normalize(text)
+                    current_heading_text = text
+                elif current_heading_norm is not None:
                     prefix = "• " if "bullet" in para else ""
                     body_lines.append(f"{prefix}{text}")
 
@@ -150,9 +157,25 @@ def _normalize(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
+def _build_local_citations(flow: dict[str, dict]) -> dict[str, dict]:
+    citations: dict[str, dict] = {}
+    for node_id, node in flow.items():
+        if node.get("answer") is None:
+            continue
+        citations[node_id] = {
+            "source": "local_file",
+            "doc": "cm.json",
+            "heading": node.get("message") or node_id,
+            "match": "exact",
+        }
+    return citations
+
+
 def _overlay_sections(
-    sections: dict[str, str],
+    sections: dict[str, dict[str, str]],
     flow: dict[str, dict],
+    citations: dict[str, dict],
+    doc_name: str,
     allowed_ids: Optional[set[str]] = None,
 ) -> int:
     """Write Google Docs section body text into matching flow nodes."""
@@ -166,10 +189,12 @@ def _overlay_sections(
     }
 
     updated = 0
-    for heading_norm, body_text in sections.items():
+    for heading_norm, section in sections.items():
+        body_text = section["body"]
         if not body_text:
             continue
         node_id = candidates.get(heading_norm)
+        match_type = "exact"
         if not node_id:
             best_len = 0
             for msg_norm, nid in candidates.items():
@@ -177,8 +202,15 @@ def _overlay_sections(
                     if len(msg_norm) > best_len:
                         best_len = len(msg_norm)
                         node_id  = nid
+                        match_type = "partial"
         if node_id and node_id in flow:
             flow[node_id]["answer"] = body_text
+            citations[node_id] = {
+                "source": "google_docs",
+                "doc": doc_name,
+                "heading": section["heading"],
+                "match": match_type,
+            }
             updated += 1
             logger.debug(f"    overlay '{heading_norm}' → '{node_id}'")
     return updated
@@ -195,8 +227,9 @@ def _load_local_json() -> dict | None:
 
 def _load() -> None:
     """Load playbook from configured data source."""
-    global _FLOW, _META, _SOURCE, _docs_service
+    global _FLOW, _META, _SOURCE, _CITATIONS, _docs_service
     _docs_service = None
+    _CITATIONS = {}
 
     ds = config.DATA_SOURCE
     logger.info(f"Loading playbook  DATA_SOURCE={ds!r}")
@@ -210,6 +243,7 @@ def _load() -> None:
             )
         _META   = base.get("meta", {})
         _FLOW   = {n["id"]: dict(n) for n in base.get("nodes", []) if n.get("id")}
+        _CITATIONS = _build_local_citations(_FLOW)
         _SOURCE = "local_file"
         logger.info(f"[json] {len(_FLOW)} nodes loaded from cm.json.")
         return
@@ -218,6 +252,7 @@ def _load() -> None:
     if base is not None:
         _META = base.get("meta", {})
         _FLOW = {n["id"]: dict(n) for n in base.get("nodes", []) if n.get("id")}
+        _CITATIONS = _build_local_citations(_FLOW)
         logger.info(f"Navigation backbone: {len(_FLOW)} nodes from cm.json.")
         _SOURCE = "local_file"
     else:
@@ -255,7 +290,13 @@ def _load() -> None:
         try:
             doc      = _fetch_google_doc(doc_id)
             sections = _extract_doc_sections(doc)
-            n        = _overlay_sections(sections, _FLOW, allowed_ids=node_ids)
+            n        = _overlay_sections(
+                sections,
+                _FLOW,
+                citations=_CITATIONS,
+                doc_name=name,
+                allowed_ids=node_ids,
+            )
             total_updated += n
             any_success    = True
             scope = f"{len(node_ids)} nodes" if node_ids else "all nodes"
@@ -304,6 +345,7 @@ def get_node(node_id: str) -> dict | None:
         "answer":  node.get("answer"),
         "buttons": node.get("buttons", []),
         "type":    node.get("type"),
+        "citation": _CITATIONS.get(node_id),
     }
 
 

@@ -1,5 +1,4 @@
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 import config
@@ -46,6 +45,7 @@ class ChatResponse(BaseModel):
     answer: str | None = None
     buttons: list[ButtonOut]
     type: str | None = None
+    citation: dict | None = None
 
 class MetaResponse(BaseModel):
     title: str
@@ -74,6 +74,7 @@ async def chat(req: ChatRequest):
         answer=node.get("answer"),
         buttons=[ButtonOut(**b) for b in node["buttons"]],
         type=node.get("type"),
+        citation=node.get("citation"),
     )
 
 
