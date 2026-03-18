@@ -1,4 +1,4 @@
-﻿"""
+"""
 Playbook flow engine - multi-playbook auto-routing edition.
 """
 from __future__ import annotations
@@ -17,13 +17,11 @@ DATA_DIR: Path = Path(_DATA_DIR_ENV) if _DATA_DIR_ENV else _ROOT_DIR / "data"
 SA_FILE = config.SA_FILE
 _SCOPES         = ["https://www.googleapis.com/auth/documents.readonly"]
 _HEADING_STYLES = {"HEADING_1", "HEADING_2", "HEADING_3", "HEADING_4", "TITLE"}
-
-_FLOW:         dict[str, dict] = {}
-_META:         dict            = {}
-_SOURCE:       str             = "unknown"
-_CITATIONS:    dict[str, dict] = {}
-_docs_service                  = None
-
+_INDEX:    dict[str, Path]  = {}
+_CACHE:    dict[Path, dict] = {}
+_SOURCE:   str              = "unknown"
+_CITATIONS: dict[str, dict] = {}
+_docs_service = None
 logger = logging.getLogger(__name__)
 def _collect_doc_entries() -> list:
     entries = []
@@ -68,15 +66,11 @@ def _paragraph_text(paragraph: dict) -> str:
         if content:
             parts.append(content)
     return "".join(parts).rstrip("\n")
-
-
 def _extract_doc_sections(doc: dict) -> dict[str, dict[str, str]]:
-    """Return { normalised_heading: {heading, body} }. Tables are skipped."""
-    sections:             dict[str, dict[str, str]] = {}
-    current_heading_norm: Optional[str]             = None
-    current_heading_text: Optional[str]             = None
-    body_lines:           list[str]                 = []
-
+    sections: dict[str, dict[str, str]] = {}
+    current_heading_norm: Optional[str] = None
+    current_heading_text: Optional[str] = None
+    body_lines: list[str] = []
     def _flush() -> None:
         nonlocal current_heading_norm, current_heading_text, body_lines
         if current_heading_norm is not None:
@@ -91,7 +85,6 @@ def _extract_doc_sections(doc: dict) -> dict[str, dict[str, str]]:
                         "body": content,
                     }
         body_lines.clear()
-
     def _walk(elements: list) -> None:
         nonlocal current_heading_norm, current_heading_text
         for el in elements:
@@ -108,8 +101,8 @@ def _extract_doc_sections(doc: dict) -> dict[str, dict[str, str]]:
                     current_heading_norm = _normalize(text)
                     current_heading_text = text
                 elif current_heading_norm is not None:
-                    prefix = "• " if "bullet" in para else ""
-                    body_lines.append(f"{prefix}{text}")
+                    pfx = "* " if "bullet" in para else ""
+                    body_lines.append(f"{pfx}{text}")
     _walk(doc.get("body", {}).get("content", []))
     _flush()
     return sections
@@ -118,8 +111,6 @@ def _normalize(text: str) -> str:
     text = text.lower().strip()
     text = re.sub(r"[^\w\s]", " ", text)
     return re.sub(r"\s+", " ", text).strip()
-
-
 def _build_local_citations(flow: dict[str, dict]) -> dict[str, dict]:
     citations: dict[str, dict] = {}
     for node_id, node in flow.items():
@@ -132,8 +123,6 @@ def _build_local_citations(flow: dict[str, dict]) -> dict[str, dict]:
             "match": "exact",
         }
     return citations
-
-
 def _overlay_sections(
     sections: dict[str, dict[str, str]],
     flow: dict[str, dict],
@@ -141,7 +130,6 @@ def _overlay_sections(
     doc_name: str,
     allowed_ids: Optional[set[str]] = None,
 ) -> int:
-    """Write Google Docs section body text into matching flow nodes."""
     candidates: dict[str, str] = {
         _normalize(node["message"]): nid
         for nid, node in flow.items()
@@ -176,9 +164,8 @@ def _overlay_sections(
             updated += 1
             logger.debug(f"    overlay {heading_norm!r} -> {node_id!r}")
     return updated
-def _scan_data_dir() -> dict:
-    """Scan all *.json in DATA_DIR and build { node_id -> Path }."""
-    index: dict = {}
+def _scan_data_dir() -> dict[str, Path]:
+    index: dict[str, Path] = {}
     if not DATA_DIR.exists():
         logger.warning(f"DATA_DIR '{DATA_DIR}' does not exist.")
         return index
@@ -202,38 +189,39 @@ def _scan_data_dir() -> dict:
     logger.info(f"Index complete: {len(index)} node IDs across {len(files)} file(s).")
     return index
 def _load_playbook_file(path: Path) -> dict:
-    """Load, overlay Google Docs, cache and return the playbook data."""
-    global _SOURCE, _docs_service
+    global _SOURCE, _docs_service, _CITATIONS
     if path in _CACHE:
         return _CACHE[path]
     with open(path, "r", encoding="utf-8") as fh:
         data = json.load(fh)
     meta: dict = data.get("meta", {})
     flow: dict = {n["id"]: dict(n) for n in data.get("nodes", []) if n.get("id")}
+    local_cit = _build_local_citations(flow)
+    _CITATIONS.update(local_cit)
     ds = config.DATA_SOURCE
     if ds != "json":
         entries = _collect_doc_entries()
         if entries and SA_FILE.exists():
             _docs_service = None
-            any_success = False
             for entry in entries:
                 try:
                     doc      = _fetch_google_doc(entry["doc_id"])
                     sections = _extract_doc_sections(doc)
-                    n        = _overlay_sections(sections, flow, allowed_ids=entry["node_ids"])
-                    any_success = True
+                    n        = _overlay_sections(
+                        sections, flow, _CITATIONS,
+                        doc_name=entry["name"],
+                        allowed_ids=entry["node_ids"],
+                    )
                     logger.info(f"  [{path.name}] Doc {entry['name']!r}: {len(sections)} sections -> {n} nodes updated")
                 except Exception as exc:
                     logger.warning(f"  [{path.name}] Doc {entry['name']!r} failed: {exc}")
                     if ds == "google":
                         raise
-            if any_success:
-                _SOURCE = "google_docs"
+            _SOURCE = "google_docs"
     _CACHE[path] = {"flow": flow, "meta": meta}
     logger.info(f"Loaded & cached '{path.name}' ({len(flow)} nodes)")
     return _CACHE[path]
 def _resolve_playbook(node_id: str) -> Optional[Path]:
-    """Find the best-matching playbook file for a given node_id."""
     if node_id in _INDEX:
         return _INDEX[node_id]
     parts = node_id.split("-")
@@ -260,64 +248,29 @@ def _resolve_playbook(node_id: str) -> Optional[Path]:
     files = sorted(DATA_DIR.glob("*.json"))
     return files[0] if files else None
 def _load() -> None:
-    """Load playbook from configured data source."""
-    global _FLOW, _META, _SOURCE, _CITATIONS, _docs_service
+    global _INDEX, _CACHE, _SOURCE, _CITATIONS, _docs_service
     _docs_service = None
-    _CITATIONS = {}
-
-    ds = config.DATA_SOURCE
-    logger.info(f"Loading playbook  DATA_SOURCE={ds!r}")
-
-    if ds == "json":
-        base = _load_local_json()
-        if base is None:
+    _CACHE.clear()
+    _CITATIONS.clear()
+    _SOURCE = "local_file"
+    logger.info(f"Scanning DATA_DIR={DATA_DIR}  DATA_SOURCE={config.DATA_SOURCE!r}")
+    _INDEX = _scan_data_dir()
+    if not _INDEX:
+        if config.DATA_SOURCE == "json":
             raise RuntimeError(
                 f"DATA_SOURCE=json but no JSON files found in '{DATA_DIR}'. "
                 "Add at least one playbook JSON file to the data directory."
             )
-        _META   = base.get("meta", {})
-        _FLOW   = {n["id"]: dict(n) for n in base.get("nodes", []) if n.get("id")}
-        _CITATIONS = _build_local_citations(_FLOW)
-        _SOURCE = "local_file"
-        logger.info(f"[json] {len(_FLOW)} nodes loaded from cm.json.")
-        return
-
-    base = _load_local_json()
-    if base is not None:
-        _META = base.get("meta", {})
-        _FLOW = {n["id"]: dict(n) for n in base.get("nodes", []) if n.get("id")}
-        _CITATIONS = _build_local_citations(_FLOW)
-        logger.info(f"Navigation backbone: {len(_FLOW)} nodes from cm.json.")
-        _SOURCE = "local_file"
-    else:
-        _META = {
-            "title":   "NDS Client Management Playbook",
-            "version": "1.1",
-            "company": "National Data & Surveying Services",
-        }
-        _FLOW   = {}
+        logger.warning("No local JSON files found - will rely on Google Docs only.")
         _SOURCE = "google_docs_only"
         return
     for path in sorted({p for p in _INDEX.values()}):
         try:
-            doc      = _fetch_google_doc(doc_id)
-            sections = _extract_doc_sections(doc)
-            n        = _overlay_sections(
-                sections,
-                _FLOW,
-                citations=_CITATIONS,
-                doc_name=name,
-                allowed_ids=node_ids,
-            )
-            total_updated += n
-            any_success    = True
-            scope = f"{len(node_ids)} nodes" if node_ids else "all nodes"
-            logger.info(f"  Doc '{name}': {len(sections)} sections → {n} nodes updated  [{scope}]")
+            _load_playbook_file(path)
         except Exception as exc:
             logger.warning(f"Pre-load failed for '{path.name}': {exc}")
 _load()
 def reload() -> str:
-    """Re-scan DATA_DIR and reload all playbook files."""
     _load()
     return _SOURCE
 def get_source() -> str:
@@ -331,7 +284,6 @@ def get_meta() -> dict:
         return dict(_CACHE[home_path]["meta"])
     return {"title": "NDS Playbook Chatbot", "version": "1.0", "company": "NDS"}
 def get_node(node_id: str) -> Optional[dict]:
-    """Find best-matching playbook and return the requested node."""
     path = _resolve_playbook(node_id)
     if path is None:
         return None
@@ -344,17 +296,16 @@ def get_node(node_id: str) -> Optional[dict]:
     if node is None:
         return None
     return {
-        "id":      node["id"],
-        "message": node["message"],
-        "answer":  node.get("answer"),
-        "buttons": node.get("buttons", []),
-        "type":    node.get("type"),
+        "id":       node["id"],
+        "message":  node["message"],
+        "answer":   node.get("answer"),
+        "buttons":  node.get("buttons", []),
+        "type":     node.get("type"),
         "citation": _CITATIONS.get(node_id),
     }
 def get_all_node_ids() -> list:
     return list(_INDEX.keys())
 def list_playbooks() -> list:
-    """Return metadata for all playbook JSON files in DATA_DIR."""
     if not DATA_DIR.exists():
         return []
     books = []
