@@ -1,16 +1,7 @@
+﻿"""
+Playbook flow engine - multi-playbook auto-routing edition.
 """
-Playbook flow engine — driven by config.py feature flags.
-
-DATA_SOURCE modes  (set in .env):
-  "json"   → load cm.json only, skip all Google Docs calls.
-  "google" → load cm.json for navigation backbone, overlay answers from Docs.
-             If cm.json is absent, navigation must come from Docs too.
-  "both"   → same as "google" but cm.json answers fill any node that Docs
-             did not update (safest / most complete).
-"""
-
 from __future__ import annotations
-
 import json
 import logging
 import os
@@ -18,14 +9,12 @@ import re
 import unicodedata
 from pathlib import Path
 from typing import Optional
-
 import config
-
-_BACKEND_DIR  = Path(__file__).resolve().parent.parent
-_ROOT_DIR     = _BACKEND_DIR.parent
-LOCAL_PATH    = _ROOT_DIR / "data" / "cm.json"
-SA_FILE       = config.SA_FILE
-
+_BACKEND_DIR = Path(__file__).resolve().parent.parent
+_ROOT_DIR    = _BACKEND_DIR.parent
+_DATA_DIR_ENV = os.getenv("DATA_DIR", "").strip()
+DATA_DIR: Path = Path(_DATA_DIR_ENV) if _DATA_DIR_ENV else _ROOT_DIR / "data"
+SA_FILE = config.SA_FILE
 _SCOPES         = ["https://www.googleapis.com/auth/documents.readonly"]
 _HEADING_STYLES = {"HEADING_1", "HEADING_2", "HEADING_3", "HEADING_4", "TITLE"}
 
@@ -36,14 +25,10 @@ _CITATIONS:    dict[str, dict] = {}
 _docs_service                  = None
 
 logger = logging.getLogger(__name__)
-
-
-def _collect_doc_entries() -> list[dict]:
-    """Scan os.environ for GOOGLE_DOC_ID_<NAME> + optional GOOGLE_DOC_NODES_<NAME>."""
-    entries: list[dict] = []
-    seen:    set[str]   = set()
+def _collect_doc_entries() -> list:
+    entries = []
+    seen: set = set()
     prefix = "GOOGLE_DOC_ID_"
-
     for key, value in os.environ.items():
         if not key.startswith(prefix):
             continue
@@ -54,48 +39,30 @@ def _collect_doc_entries() -> list[dict]:
         if name in seen:
             continue
         seen.add(name)
-
         nodes_raw = os.getenv(f"GOOGLE_DOC_NODES_{name}", "").strip()
-        node_ids: Optional[set[str]] = (
+        node_ids = (
             {n.strip() for n in nodes_raw.split(",") if n.strip()}
             if nodes_raw else None
         )
         entries.append({"name": name, "doc_id": doc_id, "node_ids": node_ids})
-        logger.info(
-            f"  Registered doc '{name}': id={doc_id[:16]}…  "
-            f"scope={'ALL' if node_ids is None else f'{len(node_ids)} nodes'}"
-        )
+        logger.info(f"  Registered doc {name!r}: id={doc_id[:16]}  scope={'ALL' if node_ids is None else len(node_ids)}")
     return entries
-
-
 def _get_docs_service():
-    """Build and cache the Google Docs API service."""
     global _docs_service
     if _docs_service is not None:
         return _docs_service
     if not SA_FILE.exists():
-        raise FileNotFoundError(
-            f"Service account credentials not found: {SA_FILE}\n"
-            "Place the JSON key from Google Cloud Console at that path."
-        )
+        raise FileNotFoundError(f"Service account credentials not found: {SA_FILE}")
     from google.oauth2 import service_account
     from googleapiclient.discovery import build
-    creds = service_account.Credentials.from_service_account_file(
-        str(SA_FILE), scopes=_SCOPES
-    )
+    creds = service_account.Credentials.from_service_account_file(str(SA_FILE), scopes=_SCOPES)
     _docs_service = build("docs", "v1", credentials=creds, cache_discovery=False)
-    logger.info("Google Docs API service initialised (OAuth 2.0).")
+    logger.info("Google Docs API service initialised.")
     return _docs_service
-
-
 def _fetch_google_doc(doc_id: str) -> dict:
-    """Fetch a single Google Doc by ID."""
     return _get_docs_service().documents().get(documentId=doc_id).execute()
-
-
 def _paragraph_text(paragraph: dict) -> str:
-    """Extract plain text from a paragraph."""
-    parts: list[str] = []
+    parts = []
     for el in paragraph.get("elements", []):
         content = el.get("textRun", {}).get("content", "")
         if content:
@@ -143,14 +110,10 @@ def _extract_doc_sections(doc: dict) -> dict[str, dict[str, str]]:
                 elif current_heading_norm is not None:
                     prefix = "• " if "bullet" in para else ""
                     body_lines.append(f"{prefix}{text}")
-
     _walk(doc.get("body", {}).get("content", []))
     _flush()
     return sections
-
-
 def _normalize(text: str) -> str:
-    """Normalise text for fuzzy matching."""
     text = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode("ascii")
     text = text.lower().strip()
     text = re.sub(r"[^\w\s]", " ", text)
@@ -187,7 +150,6 @@ def _overlay_sections(
         and node["answer"] is not None
         and (allowed_ids is None or nid in allowed_ids)
     }
-
     updated = 0
     for heading_norm, section in sections.items():
         body_text = section["body"]
@@ -212,19 +174,91 @@ def _overlay_sections(
                 "match": match_type,
             }
             updated += 1
-            logger.debug(f"    overlay '{heading_norm}' → '{node_id}'")
+            logger.debug(f"    overlay {heading_norm!r} -> {node_id!r}")
     return updated
-
-
-def _load_local_json() -> dict | None:
-    """Load cm.json if it exists."""
-    if not LOCAL_PATH.exists():
-        logger.info("data/cm.json not found.")
-        return None
-    with open(LOCAL_PATH, "r", encoding="utf-8") as f:
-        return json.load(f)
-
-
+def _scan_data_dir() -> dict:
+    """Scan all *.json in DATA_DIR and build { node_id -> Path }."""
+    index: dict = {}
+    if not DATA_DIR.exists():
+        logger.warning(f"DATA_DIR '{DATA_DIR}' does not exist.")
+        return index
+    files = sorted(DATA_DIR.glob("*.json"))
+    if not files:
+        logger.warning(f"No JSON files found in '{DATA_DIR}'.")
+        return index
+    for path in files:
+        try:
+            with open(path, "r", encoding="utf-8") as fh:
+                data = json.load(fh)
+            count = 0
+            for node in data.get("nodes", []):
+                nid = node.get("id")
+                if nid:
+                    index[nid] = path
+                    count += 1
+            logger.info(f"  Indexed '{path.name}': {count} nodes")
+        except Exception as exc:
+            logger.warning(f"  Could not index '{path.name}': {exc}")
+    logger.info(f"Index complete: {len(index)} node IDs across {len(files)} file(s).")
+    return index
+def _load_playbook_file(path: Path) -> dict:
+    """Load, overlay Google Docs, cache and return the playbook data."""
+    global _SOURCE, _docs_service
+    if path in _CACHE:
+        return _CACHE[path]
+    with open(path, "r", encoding="utf-8") as fh:
+        data = json.load(fh)
+    meta: dict = data.get("meta", {})
+    flow: dict = {n["id"]: dict(n) for n in data.get("nodes", []) if n.get("id")}
+    ds = config.DATA_SOURCE
+    if ds != "json":
+        entries = _collect_doc_entries()
+        if entries and SA_FILE.exists():
+            _docs_service = None
+            any_success = False
+            for entry in entries:
+                try:
+                    doc      = _fetch_google_doc(entry["doc_id"])
+                    sections = _extract_doc_sections(doc)
+                    n        = _overlay_sections(sections, flow, allowed_ids=entry["node_ids"])
+                    any_success = True
+                    logger.info(f"  [{path.name}] Doc {entry['name']!r}: {len(sections)} sections -> {n} nodes updated")
+                except Exception as exc:
+                    logger.warning(f"  [{path.name}] Doc {entry['name']!r} failed: {exc}")
+                    if ds == "google":
+                        raise
+            if any_success:
+                _SOURCE = "google_docs"
+    _CACHE[path] = {"flow": flow, "meta": meta}
+    logger.info(f"Loaded & cached '{path.name}' ({len(flow)} nodes)")
+    return _CACHE[path]
+def _resolve_playbook(node_id: str) -> Optional[Path]:
+    """Find the best-matching playbook file for a given node_id."""
+    if node_id in _INDEX:
+        return _INDEX[node_id]
+    parts = node_id.split("-")
+    for length in range(len(parts), 0, -1):
+        prefix = "-".join(parts[:length])
+        for nid, path in _INDEX.items():
+            if nid.startswith(prefix + "-") or nid == prefix:
+                return path
+    tokens = set(_normalize(node_id).split())
+    best_score = 0
+    best_path: Optional[Path] = None
+    for path in sorted(DATA_DIR.glob("*.json")):
+        try:
+            with open(path, "r", encoding="utf-8") as fh:
+                title = json.load(fh).get("meta", {}).get("title", "")
+            score = len(tokens & set(_normalize(title).split()))
+            if score > best_score:
+                best_score = score
+                best_path  = path
+        except Exception:
+            continue
+    if best_path:
+        return best_path
+    files = sorted(DATA_DIR.glob("*.json"))
+    return files[0] if files else None
 def _load() -> None:
     """Load playbook from configured data source."""
     global _FLOW, _META, _SOURCE, _CITATIONS, _docs_service
@@ -238,8 +272,8 @@ def _load() -> None:
         base = _load_local_json()
         if base is None:
             raise RuntimeError(
-                "DATA_SOURCE=json but data/cm.json not found. "
-                "Restore the file or switch DATA_SOURCE to 'google' or 'both'."
+                f"DATA_SOURCE=json but no JSON files found in '{DATA_DIR}'. "
+                "Add at least one playbook JSON file to the data directory."
             )
         _META   = base.get("meta", {})
         _FLOW   = {n["id"]: dict(n) for n in base.get("nodes", []) if n.get("id")}
@@ -263,30 +297,8 @@ def _load() -> None:
         }
         _FLOW   = {}
         _SOURCE = "google_docs_only"
-        logger.info("cm.json absent — navigation will come from Google Docs.")
-
-    entries = _collect_doc_entries()
-    if not entries:
-        logger.warning(
-            f"DATA_SOURCE={ds!r} but no GOOGLE_DOC_ID_* vars are set. "
-            "Serving whatever is in cm.json."
-        )
         return
-
-    if not SA_FILE.exists():
-        msg = f"Credentials file missing: {SA_FILE}"
-        if ds == "google":
-            raise FileNotFoundError(msg)
-        logger.warning(f"{msg} → falling back to cm.json answers.")
-        return
-
-    total_updated = 0
-    any_success   = False
-
-    for entry in entries:
-        name     = entry["name"]
-        doc_id   = entry["doc_id"]
-        node_ids = entry["node_ids"]
+    for path in sorted({p for p in _INDEX.values()}):
         try:
             doc      = _fetch_google_doc(doc_id)
             sections = _extract_doc_sections(doc)
@@ -302,41 +314,33 @@ def _load() -> None:
             scope = f"{len(node_ids)} nodes" if node_ids else "all nodes"
             logger.info(f"  Doc '{name}': {len(sections)} sections → {n} nodes updated  [{scope}]")
         except Exception as exc:
-            logger.warning(f"  Doc '{name}' failed: {exc}")
-            if ds == "google":
-                raise
-
-    if any_success:
-        _SOURCE = "google_docs"
-        logger.info(f"Overlay done — {total_updated} total nodes updated from Google Docs.")
-    else:
-        if ds == "google":
-            raise RuntimeError("DATA_SOURCE=google but all doc fetches failed.")
-        logger.warning("All doc fetches failed — serving cm.json answers only.")
-
-
+            logger.warning(f"Pre-load failed for '{path.name}': {exc}")
 _load()
-
-
 def reload() -> str:
-    """Re-fetch from configured data source."""
+    """Re-scan DATA_DIR and reload all playbook files."""
     _load()
     return _SOURCE
-
-
 def get_source() -> str:
-    """Get the active data source."""
     return _SOURCE
-
-
 def get_meta() -> dict:
-    """Get playbook metadata."""
-    return dict(_META)
-
-
-def get_node(node_id: str) -> dict | None:
-    """Get a specific node by ID."""
-    node = _FLOW.get(node_id)
+    home_path = _INDEX.get("home")
+    if home_path is None:
+        files = sorted(DATA_DIR.glob("*.json"))
+        home_path = files[0] if files else None
+    if home_path and home_path in _CACHE:
+        return dict(_CACHE[home_path]["meta"])
+    return {"title": "NDS Playbook Chatbot", "version": "1.0", "company": "NDS"}
+def get_node(node_id: str) -> Optional[dict]:
+    """Find best-matching playbook and return the requested node."""
+    path = _resolve_playbook(node_id)
+    if path is None:
+        return None
+    try:
+        book = _load_playbook_file(path)
+    except Exception as exc:
+        logger.error(f"Failed to load playbook '{path}': {exc}")
+        return None
+    node = book["flow"].get(node_id)
     if node is None:
         return None
     return {
@@ -347,9 +351,30 @@ def get_node(node_id: str) -> dict | None:
         "type":    node.get("type"),
         "citation": _CITATIONS.get(node_id),
     }
-
-
-def get_all_node_ids() -> list[str]:
-    """Get all node IDs."""
-    return list(_FLOW.keys())
-
+def get_all_node_ids() -> list:
+    return list(_INDEX.keys())
+def list_playbooks() -> list:
+    """Return metadata for all playbook JSON files in DATA_DIR."""
+    if not DATA_DIR.exists():
+        return []
+    books = []
+    for f in sorted(DATA_DIR.glob("*.json")):
+        try:
+            with open(f, "r", encoding="utf-8") as fh:
+                data = json.load(fh)
+            meta  = data.get("meta", {})
+            nodes = data.get("nodes", [])
+            books.append({
+                "file":       f.name,
+                "title":      meta.get("title", f.stem),
+                "company":    meta.get("company", ""),
+                "version":    meta.get("version", ""),
+                "node_count": len(nodes),
+                "cached":     f in _CACHE,
+            })
+        except Exception:
+            books.append({"file": f.name, "title": f.stem, "node_count": 0, "cached": False})
+    return books
+def get_active_playbook() -> str:
+    cached = [p.name for p in _CACHE]
+    return ", ".join(cached) if cached else "none"

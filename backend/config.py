@@ -70,9 +70,10 @@ MAINTENANCE_MESSAGE:     str  = _str(
     "The playbook is currently under maintenance. Please try again shortly."
 )
 
-_SA_REL              = _str("GOOGLE_SERVICE_ACCOUNT_FILE", "credentials/service_account.json")
-SA_FILE: Path        = (Path(_SA_REL) if Path(_SA_REL).is_absolute()
-                        else _BACKEND_DIR / _SA_REL)
+_SA_REL   = _str("GOOGLE_SERVICE_ACCOUNT_FILE", "credentials/service_account.json")
+SA_FILE: Path = (Path(_SA_REL) if Path(_SA_REL).is_absolute() else _BACKEND_DIR / _SA_REL)
+
+DATA_DIR_ENV: str = _str("DATA_DIR", "")
 
 APP_ENV:   str = _str("APP_ENV",   "development")
 LOG_LEVEL: str = _str("LOG_LEVEL", "INFO").upper()
@@ -81,15 +82,15 @@ LOG_LEVEL: str = _str("LOG_LEVEL", "INFO").upper()
 def as_dict() -> dict:
     """Return all feature flags as a serialisable dict for the /api/flags endpoint."""
     return {
-        "app_env":               APP_ENV,
-        "data_source":           DATA_SOURCE,
-        "maintenance_mode":      MAINTENANCE_MODE,
-        "maintenance_message":   MAINTENANCE_MESSAGE if MAINTENANCE_MODE else None,
+        "app_env":             APP_ENV,
+        "data_source":         DATA_SOURCE,
+        "maintenance_mode":    MAINTENANCE_MODE,
+        "maintenance_message": MAINTENANCE_MESSAGE if MAINTENANCE_MODE else None,
         "features": {
-            "chat":              ENABLE_CHAT,
-            "reload":            ENABLE_RELOAD,
-            "debug_endpoints":   ENABLE_DEBUG_ENDPOINTS,
-            "meta_endpoint":     ENABLE_META_ENDPOINT,
+            "chat":            ENABLE_CHAT,
+            "reload":          ENABLE_RELOAD,
+            "debug_endpoints": ENABLE_DEBUG_ENDPOINTS,
+            "meta_endpoint":   ENABLE_META_ENDPOINT,
         },
         "google_docs": {
             "credentials_file":  str(SA_FILE),
