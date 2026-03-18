@@ -46,7 +46,7 @@ class ChatResponse(BaseModel):
     answer: str | None = None
     buttons: list[ButtonOut]
     type: str | None = None
-    playbook_file: str | None = None
+    citation: dict | None = None
 
 class MetaResponse(BaseModel):
     title: str
@@ -75,7 +75,7 @@ async def chat(req: ChatRequest):
         answer=node.get("answer"),
         buttons=[ButtonOut(**b) for b in node["buttons"]],
         type=node.get("type"),
-        playbook_file=node.get("playbook_file"),
+        citation=node.get("citation"),
     )
 
 

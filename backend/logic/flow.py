@@ -17,10 +17,13 @@ DATA_DIR: Path = Path(_DATA_DIR_ENV) if _DATA_DIR_ENV else _ROOT_DIR / "data"
 SA_FILE = config.SA_FILE
 _SCOPES         = ["https://www.googleapis.com/auth/documents.readonly"]
 _HEADING_STYLES = {"HEADING_1", "HEADING_2", "HEADING_3", "HEADING_4", "TITLE"}
-_INDEX:  dict = {}
-_CACHE:  dict = {}
-_SOURCE: str  = "unknown"
-_docs_service = None
+
+_FLOW:         dict[str, dict] = {}
+_META:         dict            = {}
+_SOURCE:       str             = "unknown"
+_CITATIONS:    dict[str, dict] = {}
+_docs_service                  = None
+
 logger = logging.getLogger(__name__)
 def _collect_doc_entries() -> list:
     entries = []
@@ -65,22 +68,32 @@ def _paragraph_text(paragraph: dict) -> str:
         if content:
             parts.append(content)
     return "".join(parts).rstrip("\n")
-def _extract_doc_sections(doc: dict) -> dict:
-    sections: dict = {}
-    current_heading = None
-    body_lines: list = []
-    def _flush():
-        nonlocal current_heading, body_lines
-        if current_heading is not None:
+
+
+def _extract_doc_sections(doc: dict) -> dict[str, dict[str, str]]:
+    """Return { normalised_heading: {heading, body} }. Tables are skipped."""
+    sections:             dict[str, dict[str, str]] = {}
+    current_heading_norm: Optional[str]             = None
+    current_heading_text: Optional[str]             = None
+    body_lines:           list[str]                 = []
+
+    def _flush() -> None:
+        nonlocal current_heading_norm, current_heading_text, body_lines
+        if current_heading_norm is not None:
             content = "\n".join(body_lines).strip()
             if content:
-                sections[current_heading] = (
-                    sections[current_heading] + "\n" + content
-                    if current_heading in sections else content
-                )
+                existing = sections.get(current_heading_norm)
+                if existing:
+                    existing["body"] = f'{existing["body"]}\n{content}'
+                else:
+                    sections[current_heading_norm] = {
+                        "heading": current_heading_text or current_heading_norm,
+                        "body": content,
+                    }
         body_lines.clear()
-    def _walk(elements):
-        nonlocal current_heading
+
+    def _walk(elements: list) -> None:
+        nonlocal current_heading_norm, current_heading_text
         for el in elements:
             if "table" in el:
                 continue
@@ -92,8 +105,9 @@ def _extract_doc_sections(doc: dict) -> dict:
                     continue
                 if style in _HEADING_STYLES:
                     _flush()
-                    current_heading = _normalize(text)
-                elif current_heading is not None:
+                    current_heading_norm = _normalize(text)
+                    current_heading_text = text
+                elif current_heading_norm is not None:
                     prefix = "• " if "bullet" in para else ""
                     body_lines.append(f"{prefix}{text}")
     _walk(doc.get("body", {}).get("content", []))
@@ -104,8 +118,31 @@ def _normalize(text: str) -> str:
     text = text.lower().strip()
     text = re.sub(r"[^\w\s]", " ", text)
     return re.sub(r"\s+", " ", text).strip()
-def _overlay_sections(sections: dict, flow: dict, allowed_ids=None) -> int:
-    candidates = {
+
+
+def _build_local_citations(flow: dict[str, dict]) -> dict[str, dict]:
+    citations: dict[str, dict] = {}
+    for node_id, node in flow.items():
+        if node.get("answer") is None:
+            continue
+        citations[node_id] = {
+            "source": "local_file",
+            "doc": "cm.json",
+            "heading": node.get("message") or node_id,
+            "match": "exact",
+        }
+    return citations
+
+
+def _overlay_sections(
+    sections: dict[str, dict[str, str]],
+    flow: dict[str, dict],
+    citations: dict[str, dict],
+    doc_name: str,
+    allowed_ids: Optional[set[str]] = None,
+) -> int:
+    """Write Google Docs section body text into matching flow nodes."""
+    candidates: dict[str, str] = {
         _normalize(node["message"]): nid
         for nid, node in flow.items()
         if node.get("message")
@@ -114,10 +151,12 @@ def _overlay_sections(sections: dict, flow: dict, allowed_ids=None) -> int:
         and (allowed_ids is None or nid in allowed_ids)
     }
     updated = 0
-    for heading_norm, body_text in sections.items():
+    for heading_norm, section in sections.items():
+        body_text = section["body"]
         if not body_text:
             continue
         node_id = candidates.get(heading_norm)
+        match_type = "exact"
         if not node_id:
             best_len = 0
             for msg_norm, nid in candidates.items():
@@ -125,8 +164,15 @@ def _overlay_sections(sections: dict, flow: dict, allowed_ids=None) -> int:
                     if len(msg_norm) > best_len:
                         best_len = len(msg_norm)
                         node_id  = nid
+                        match_type = "partial"
         if node_id and node_id in flow:
             flow[node_id]["answer"] = body_text
+            citations[node_id] = {
+                "source": "google_docs",
+                "doc": doc_name,
+                "heading": section["heading"],
+                "match": match_type,
+            }
             updated += 1
             logger.debug(f"    overlay {heading_norm!r} -> {node_id!r}")
     return updated
@@ -214,25 +260,59 @@ def _resolve_playbook(node_id: str) -> Optional[Path]:
     files = sorted(DATA_DIR.glob("*.json"))
     return files[0] if files else None
 def _load() -> None:
-    """Scan DATA_DIR, build index, pre-load all playbook files."""
-    global _INDEX, _CACHE, _SOURCE, _docs_service
+    """Load playbook from configured data source."""
+    global _FLOW, _META, _SOURCE, _CITATIONS, _docs_service
     _docs_service = None
-    _CACHE.clear()
-    _SOURCE = "local_file"
-    logger.info(f"Scanning DATA_DIR={DATA_DIR}  DATA_SOURCE={config.DATA_SOURCE!r}")
-    _INDEX = _scan_data_dir()
-    if not _INDEX:
-        if config.DATA_SOURCE == "json":
+    _CITATIONS = {}
+
+    ds = config.DATA_SOURCE
+    logger.info(f"Loading playbook  DATA_SOURCE={ds!r}")
+
+    if ds == "json":
+        base = _load_local_json()
+        if base is None:
             raise RuntimeError(
                 f"DATA_SOURCE=json but no JSON files found in '{DATA_DIR}'. "
                 "Add at least one playbook JSON file to the data directory."
             )
-        logger.warning("No local JSON files found - will rely on Google Docs only.")
+        _META   = base.get("meta", {})
+        _FLOW   = {n["id"]: dict(n) for n in base.get("nodes", []) if n.get("id")}
+        _CITATIONS = _build_local_citations(_FLOW)
+        _SOURCE = "local_file"
+        logger.info(f"[json] {len(_FLOW)} nodes loaded from cm.json.")
+        return
+
+    base = _load_local_json()
+    if base is not None:
+        _META = base.get("meta", {})
+        _FLOW = {n["id"]: dict(n) for n in base.get("nodes", []) if n.get("id")}
+        _CITATIONS = _build_local_citations(_FLOW)
+        logger.info(f"Navigation backbone: {len(_FLOW)} nodes from cm.json.")
+        _SOURCE = "local_file"
+    else:
+        _META = {
+            "title":   "NDS Client Management Playbook",
+            "version": "1.1",
+            "company": "National Data & Surveying Services",
+        }
+        _FLOW   = {}
         _SOURCE = "google_docs_only"
         return
     for path in sorted({p for p in _INDEX.values()}):
         try:
-            _load_playbook_file(path)
+            doc      = _fetch_google_doc(doc_id)
+            sections = _extract_doc_sections(doc)
+            n        = _overlay_sections(
+                sections,
+                _FLOW,
+                citations=_CITATIONS,
+                doc_name=name,
+                allowed_ids=node_ids,
+            )
+            total_updated += n
+            any_success    = True
+            scope = f"{len(node_ids)} nodes" if node_ids else "all nodes"
+            logger.info(f"  Doc '{name}': {len(sections)} sections → {n} nodes updated  [{scope}]")
         except Exception as exc:
             logger.warning(f"Pre-load failed for '{path.name}': {exc}")
 _load()
@@ -264,12 +344,12 @@ def get_node(node_id: str) -> Optional[dict]:
     if node is None:
         return None
     return {
-        "id":            node["id"],
-        "message":       node["message"],
-        "answer":        node.get("answer"),
-        "buttons":       node.get("buttons", []),
-        "type":          node.get("type"),
-        "playbook_file": path.name,
+        "id":      node["id"],
+        "message": node["message"],
+        "answer":  node.get("answer"),
+        "buttons": node.get("buttons", []),
+        "type":    node.get("type"),
+        "citation": _CITATIONS.get(node_id),
     }
 def get_all_node_ids() -> list:
     return list(_INDEX.keys())

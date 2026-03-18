@@ -81,6 +81,22 @@ function FormatText({ text }) {
   return <>{elements}</>;
 }
 
+function CitationLine({ citation }) {
+  if (!citation) return null;
+  const source = citation.doc || "Unknown source";
+  const heading = citation.heading || "";
+  const match = citation.match || "";
+  const label = heading ? `${source} - ${heading}` : source;
+
+  return (
+    <div className="msg-citation">
+      <span className="msg-citation__label">Source:</span>
+      <span className="msg-citation__value">{label}</span>
+      {match && <span className="msg-citation__match">{match}</span>}
+    </div>
+  );
+}
+
 export default function MessageList({ messages }) {
   const endRef = useRef(null);
 
@@ -100,6 +116,7 @@ export default function MessageList({ messages }) {
                   <FormatText text={msg.text} />
                 </div>
               )}
+              <CitationLine citation={msg.citation} />
             </div>
           ) : (
             <div className="message__bubble message__bubble--user">

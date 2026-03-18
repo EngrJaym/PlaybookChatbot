@@ -85,6 +85,7 @@ export default function useChat() {
           title:  data.message,
           text:   data.answer || null,
           nodeId: data.id,
+          citation: data.citation || null,
         },
       ]);
       setButtons(data.buttons);
