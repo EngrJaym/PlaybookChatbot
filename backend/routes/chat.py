@@ -1,11 +1,11 @@
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 import config
 from logic.flow import (
     get_node, get_meta, get_all_node_ids,
     get_source, reload, _collect_doc_entries,
+    list_playbooks, get_active_playbook,
 )
 
 router = APIRouter(prefix="/api", tags=["chat"])
@@ -46,6 +46,7 @@ class ChatResponse(BaseModel):
     answer: str | None = None
     buttons: list[ButtonOut]
     type: str | None = None
+    playbook_file: str | None = None
 
 class MetaResponse(BaseModel):
     title: str
@@ -74,6 +75,7 @@ async def chat(req: ChatRequest):
         answer=node.get("answer"),
         buttons=[ButtonOut(**b) for b in node["buttons"]],
         type=node.get("type"),
+        playbook_file=node.get("playbook_file"),
     )
 
 
@@ -113,13 +115,25 @@ async def nodes():
         for e in entries
     ]
     return {
-        "source":          get_source(),
+        "source":           get_source(),
         "data_source_mode": config.DATA_SOURCE,
-        "node_count":      len(get_all_node_ids()),
-        "node_ids":        get_all_node_ids(),
+        "active_playbook":  get_active_playbook(),
+        "node_count":       len(get_all_node_ids()),
+        "node_ids":         get_all_node_ids(),
         "google_docs": {
             "credentials_file":  str(config.SA_FILE),
             "credentials_found": config.SA_FILE.exists(),
             "registered_docs":   docs_info,
         },
     }
+
+
+@router.get("/playbooks")
+async def playbooks():
+    """List all available playbook JSON files in the data directory."""
+    return {
+        "active":    get_active_playbook(),
+        "playbooks": list_playbooks(),
+    }
+
+
