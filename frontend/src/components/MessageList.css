@@ -25,49 +25,49 @@
 
 .message__bubble {
   padding: 11px 14px;
-  border-radius: 12px;
-  font-size: 13px;
-  line-height: 1.6;
+  border-radius: 16px;
+  font-size: 13.5px;
+  line-height: 1.65;
   overflow-wrap: break-word;
 }
 
 .message__bubble--bot {
-  background: #f8fbff;
+  background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
   color: #0f172a;
-  border: 1px solid #e5edf8;
-  box-shadow: 0 1px 10px rgba(15, 23, 42, 0.04);
+  border: 1px solid rgba(229, 237, 248, 0.95);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
 }
 
 .message__bubble--user {
-  background: #edf4ff;
-  color: #173b80;
-  border: 1px solid #d3e1f7;
+  background: linear-gradient(135deg, #1f4ea8 0%, #2b67cc 100%);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.18);
   border-left: 4px solid #1f4ea8;
-  box-shadow: 0 2px 14px rgba(31, 78, 168, 0.1);
+  box-shadow: 0 10px 26px rgba(31, 78, 168, 0.18);
 }
 
 .msg-title {
   font-weight: 700;
-  font-size: 13px;
-  color: #1c478f;
-  margin-bottom: 8px;
-  padding-bottom: 7px;
-  border-bottom: 1px solid #e5edf8;
+  font-size: 12.5px;
+  color: #0f3d8c;
+  margin-bottom: 7px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(229, 237, 248, 0.9);
 }
 
 .msg-answer {
-  font-size: 13px;
-  line-height: 1.68;
-  color: #1e293b;
+  font-size: 13.5px;
+  line-height: 1.7;
+  color: inherit;
 }
 
 .msg-citation {
   margin-top: 9px;
   padding-top: 8px;
-  border-top: 1px dashed #d7e4f8;
+  border-top: 1px solid rgba(215, 228, 248, 0.9);
   font-size: 11px;
   line-height: 1.35;
-  color: #5b6f91;
+  color: #546b8a;
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
@@ -75,11 +75,11 @@
 
 .msg-citation__label {
   font-weight: 700;
-  color: #37568b;
+  color: #2f4f77;
 }
 
 .msg-citation__value {
-  color: #4a638b;
+  color: #3f5e85;
 }
 
 .msg-citation__match {
@@ -99,9 +99,9 @@
 }
 
 .msg-warning {
-  background: #fff7df;
-  border-left: 3px solid #f59e0b;
-  padding: 8px 10px;
+  background: #fff6dd;
+  border-left: 4px solid #f59e0b;
+  padding: 9px 10px;
   border-radius: 8px;
   margin: 8px 0;
   font-size: 12px;
