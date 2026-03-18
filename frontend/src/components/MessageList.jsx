@@ -1,20 +1,17 @@
 import { useEffect, useRef } from "react";
 import "./MessageList.css";
 
-/**
- * Renders newline-separated text with basic formatting:
- *  - Lines starting with • or - become list items
- *  - Lines starting with a number+period become numbered items
- *  - **bold** text is rendered bold
- *  - Lines starting with ⚠️ get a warning style
- */
+import IconAlert from "./icons/IconAlert";
+
+const WARNING_PREFIX_RE = /^WARNING:\s*/i;
+
 function FormatText({ text }) {
   if (!text) return null;
 
   const lines = text.split("\n");
   const elements = [];
   let listItems = [];
-  let listType = null; // "ul" or "ol"
+  let listType = null;
 
   const flushList = () => {
     if (listItems.length > 0) {
@@ -30,7 +27,6 @@ function FormatText({ text }) {
   };
 
   const formatInline = (str) => {
-    // Bold: **text** or text between asterisks
     const parts = str.split(/\*\*(.+?)\*\*/g);
     return parts.map((part, i) =>
       i % 2 === 1 ? <strong key={i}>{part}</strong> : part
@@ -44,7 +40,6 @@ function FormatText({ text }) {
       return;
     }
 
-    // Bullet item
     if (/^[•\-]\s/.test(trimmed)) {
       if (listType !== "ul") flushList();
       listType = "ul";
@@ -52,7 +47,6 @@ function FormatText({ text }) {
       return;
     }
 
-    // Numbered item
     const numMatch = trimmed.match(/^(\d+)\.\s(.+)/);
     if (numMatch) {
       if (listType !== "ol") flushList();
@@ -61,14 +55,26 @@ function FormatText({ text }) {
       return;
     }
 
-    // Regular line
     flushList();
-    const isWarning = trimmed.startsWith("⚠️");
-    elements.push(
-      <p key={i} className={`msg-para ${isWarning ? "msg-warning" : ""}`}>
-        {formatInline(trimmed)}
-      </p>
-    );
+    const isWarning = WARNING_PREFIX_RE.test(trimmed);
+    const content = isWarning ? trimmed.replace(WARNING_PREFIX_RE, "") : trimmed;
+
+    if (isWarning) {
+      elements.push(
+        <p key={i} className="msg-para msg-warning">
+          <span className="msg-warning__icon" aria-hidden="true">
+            <IconAlert className="msg-warning__icon-svg" />
+          </span>
+          <span className="msg-warning__text">{formatInline(content)}</span>
+        </p>
+      );
+    } else {
+      elements.push(
+        <p key={i} className="msg-para">
+          {formatInline(content)}
+        </p>
+      );
+    }
   });
 
   flushList();
