@@ -62,13 +62,13 @@
 }
 
 .msg-citation {
+  display: none;
   margin-top: 9px;
   padding-top: 8px;
   border-top: 1px solid rgba(215, 228, 248, 0.9);
   font-size: 11px;
   line-height: 1.35;
   color: #546b8a;
-  display: flex;
   flex-wrap: wrap;
   gap: 6px;
 }
