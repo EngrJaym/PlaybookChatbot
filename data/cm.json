@@ -1,0 +1,943 @@
+{
+  "meta": {
+    "title": "NDS Client Management Playbook",
+    "version": "1.1",
+    "company": "National Data & Surveying Services"
+  },
+  "nodes": [
+    {
+      "id": "home",
+      "type": "topic_home",
+      "message": "Welcome to the NDS Client Management Playbook. What do you need help with?",
+      "buttons": [
+        { "label": "Account setup & tools", "next": "account-home" },
+        { "label": "Process overview", "next": "process-overview" },
+        { "label": "Email request review", "next": "email-review-home" },
+        { "label": "Mapping", "next": "mapping-home" },
+        { "label": "Estimation", "next": "estimation-home" },
+        { "label": "Pricing", "next": "pricing-home" },
+        { "label": "PSU", "next": "psu-home" },
+        { "label": "Study types", "next": "study-home" },
+        { "label": "Self-QC checklist", "next": "qc-home" },
+        { "label": "Office locations & regions", "next": "regions-home" }
+      ]
+    },
+
+    {
+      "id": "account-home",
+      "message": "What do you need help with for account setup and tools?",
+      "buttons": [
+        { "label": "Email account setup", "next": "account-email" },
+        { "label": "Google Chat", "next": "account-gchat" },
+        { "label": "Airtable", "next": "account-airtable" },
+        { "label": "PDF / PDF Combiner", "next": "account-pdf" },
+        { "label": "StatsAmerica", "next": "account-stats" },
+        { "label": "Google Earth Pro", "next": "account-gearth" },
+        { "label": "Outlook / Webmail", "next": "account-outlook" },
+        { "label": "Back to home", "next": "home" }
+      ]
+    },
+    {
+      "id": "account-email",
+      "message": "Email Account Setup",
+      "answer": "1. GM will request an ndsdata.com email from Kevin Deal.\n2. TL/PM to track and follow up as needed.\n3. Create a Google account using the format:\n   firstname.lastname.ndsdata@gmail.com",
+      "buttons": [
+        { "label": "Back to account setup", "next": "account-home" },
+        { "label": "Back to home", "next": "home" }
+      ]
+    },
+    {
+      "id": "account-gchat",
+      "message": "Google Chat",
+      "answer": "Google Chat is the main communication channel for the CM team. Ask your leads to add you to the relevant CM spaces after your account is set up.",
+      "buttons": [
+        { "label": "Back to account setup", "next": "account-home" },
+        { "label": "Back to home", "next": "home" }
+      ]
+    },
+    {
+      "id": "account-airtable",
+      "message": "Airtable",
+      "answer": "Airtable serves as the centralized database where the team inputs and tracks client information essential for generating accurate Estimations and Project Scoping Units (PSUs). Credentials will be provided by the CM leads upon onboarding.",
+      "buttons": [
+        { "label": "Back to account setup", "next": "account-home" },
+        { "label": "Back to home", "next": "home" }
+      ]
+    },
+    {
+      "id": "account-pdf",
+      "message": "PDF / PDF Combiner",
+      "answer": "Used to merge, compress, and split PSU files as needed for easier file management and submission.",
+      "buttons": [
+        { "label": "Back to account setup", "next": "account-home" },
+        { "label": "Back to home", "next": "home" }
+      ]
+    },
+    {
+      "id": "account-stats",
+      "message": "StatsAmerica",
+      "answer": "Used to validate City, County, and State information for project locations. Go to the StatsAmerica website, provide the project state and city to confirm county details.",
+      "buttons": [
+        { "label": "Back to account setup", "next": "account-home" },
+        { "label": "Back to home", "next": "home" }
+      ]
+    },
+    {
+      "id": "account-gearth",
+      "message": "Google Earth Pro — what do you need help with?",
+      "buttons": [
+        { "label": "Optimize performance settings", "next": "gearth-settings" },
+        { "label": "Measure mileage / directions", "next": "gearth-mileage" },
+        { "label": "Create folder templates", "next": "gearth-template" },
+        { "label": "Import CSV with style template", "next": "gearth-csv" },
+        { "label": "Back to account setup", "next": "account-home" }
+      ]
+    },
+    {
+      "id": "gearth-settings",
+      "message": "Google Earth Pro — Performance Settings",
+      "answer": "Optimize performance by going to:\nTools > Options > Navigation",
+      "buttons": [
+        { "label": "Back to Google Earth Pro", "next": "account-gearth" },
+        { "label": "Back to home", "next": "home" }
+      ]
+    },
+    {
+      "id": "gearth-mileage",
+      "message": "Google Earth Pro — Measuring Mileage",
+      "answer": "Use the 'Directions from here' or 'Directions to here' feature by right-clicking a pin in Places.\n\n1. Right-click the closest pricing tier pin / office location → 'Directions from here'\n2. Right-click the farthest project location pin → 'Directions to here'\n3. Choose the first route result for fuel surcharge calculation and tier identification.",
+      "buttons": [
+        { "label": "Back to Google Earth Pro", "next": "account-gearth" },
+        { "label": "Back to home", "next": "home" }
+      ]
+    },
+    {
+      "id": "gearth-template",
+      "message": "Google Earth Pro — Creating Folder Templates",
+      "answer": "1. In Places panel, right-click on My Places → Add > Folder.\n2. Name the folder (e.g., 'Project Template').\n3. Right-click the folder → Properties → Style, Color tab.\n4. Set desired label color, icon, and label scale.\n5. Click OK.\n6. Add new features (placemarks) inside the folder — they inherit the folder's styles automatically.\n7. To reuse: right-click folder → Save Place As (KML or KMZ).",
+      "buttons": [
+        { "label": "Back to Google Earth Pro", "next": "account-gearth" },
+        { "label": "Back to home", "next": "home" }
+      ]
+    },
+    {
+      "id": "gearth-csv",
+      "message": "Google Earth Pro — CSV Import & KST Style Template",
+      "answer": "1. Go to File > Import, select your CSV file.\n2. Configure field types (Delimited, Comma) and map Latitude/Longitude columns.\n3. When prompted 'Apply a style template?' → click Yes.\n4. In Style Template Settings:\n   - Name Tab: choose the column for placemark names\n   - Color Tab: single color or set from field\n   - Icon Tab: same icon or set from field\n   - Height Tab: Clamp to ground\n5. Click OK → Save the .kst file with a descriptive name.\n\nNext time: choose 'Use existing template' during import.",
+      "buttons": [
+        { "label": "Back to Google Earth Pro", "next": "account-gearth" },
+        { "label": "Back to home", "next": "home" }
+      ]
+    },
+    {
+      "id": "account-outlook",
+      "message": "Outlook / Webmail",
+      "answer": "Use cm@ndsdata.com for client communication.\nUse your personal ndsdata email for internal responses.\n\nSync emails in Outlook manually through POP. Contact Paul Astrera for assistance.",
+      "buttons": [
+        { "label": "Back to account setup", "next": "account-home" },
+        { "label": "Back to home", "next": "home" }
+      ]
+    },
+
+    {
+      "id": "process-overview",
+      "message": "NDS Standard Process Flow — from quotation to delivery:",
+      "answer": "1. Client requests quotation via email or phone call\n2. Client Management → Mapping and Estimation\n3. Area Manager sends estimate to client for approval\n4. Client gives Notice to Proceed\n5. Client Management generates a Cover Sheet (PSU)\n6. Scheduling Team assigns schedule to technician\n7. Technician installs camera/device\n8. Technician tears down camera/device\n9. Technician uploads file to server\n10. Audit Team audits videos and checks for issues\n11. Audit Team sends to JOBS EMAIL for video counting or finalizing\n12. Area Manager — NDS delivers\n\n⚠️ Redo/Re-installation: If Audit finds no upload, missing footage, or incomplete footage → sent back to Scheduling Team for re-assignment.",
+      "buttons": [
+        { "label": "Back to home", "next": "home" }
+      ]
+    },
+
+    {
+      "id": "email-review-home",
+      "message": "Email Request Review — what do you need help with?",
+      "buttons": [
+        { "label": "Step-by-step review process", "next": "email-review-steps" },
+        { "label": "AI analysis prompt (Gemini)", "next": "email-ai-prompt" },
+        { "label": "Back to home", "next": "home" }
+      ]
+    },
+    {
+      "id": "email-review-steps",
+      "message": "Email Request Review — Step by Step",
+      "answer": "1. Receive client's request via cm@ndsdata.com inbox.\n\n2. Record in CM Templates:\n   Client Details:\n   • Client name, Firm, Contact Number, Office Address\n\n   Project Details:\n   • Email subject\n   • Request details (study type, collection days/duration, special requests)\n   • Location info (region, region boundary, city, state, county)\n   Note: Some locations are sent as attachments (map, list, PDF).\n\n3. Create an <Estimate> folder in your Documents folder, then a subfolder with today's date <mm.dd.yyyy>. You may add a <1> subfolder for tasks of the day.\n\n4. Drag the email into the working folder and save all attachments:\n   • Client map\n   • Client project locations list",
+      "buttons": [
+        { "label": "AI analysis prompt", "next": "email-ai-prompt" },
+        { "label": "Back to email review", "next": "email-review-home" },
+        { "label": "Back to home", "next": "home" }
+      ]
+    },
+    {
+      "id": "email-ai-prompt",
+      "message": "AI Analysis Prompt (Gemini) — Standalone Analysis",
+      "answer": "Copy the full email thread into Gemini with this prompt:\n\n'Analyze the email and list: Client Name, Company, Contact Number, Office Address, Email Subject, Study Type, Project Locations, Collection Time and Day, Number of Technicians.\n• If sender is from NDSDATA.com, find the requester in the email and add to the list.\n• If multiple locations, create CSV for TMC with: street, city, state. Replace \"and\" or \"at\" with \"&\".\n• Study types: TMC or ATR.\n• KMZ Filename format: (Client)-(Email Subject) (City, State Abbreviation)\n• MAP Filename: MAP-<mm.dd.yyyy> <Client>-<Email Subject> <City, State>'\n\nTMC Defaults:\n• Duration: 4hrs (7:00-9:00AM & 4:00-6:00PM)\n• Weekday: Tuesday, Wednesday, or Thursday\n• Weekend: 3hrs (11:00AM-2:00PM)\n• Camera installation needed for 9hrs+\n\nATR Defaults:\n• Duration: 24 hours\n• Collection day: Weekday\n• Default add-on: Volume",
+      "buttons": [
+        { "label": "Back to email review", "next": "email-review-home" },
+        { "label": "Back to home", "next": "home" }
+      ]
+    },
+
+    {
+      "id": "mapping-home",
+      "message": "Mapping — what do you need help with?",
+      "buttons": [
+        { "label": "General mapping process", "next": "mapping-general" },
+        { "label": "KMZ file naming rules", "next": "mapping-kmz-naming" },
+        { "label": "Identifying locations", "next": "mapping-locations" },
+        { "label": "Measuring distance (fuel surcharge/tier)", "next": "mapping-distance" },
+        { "label": "Mapping summary by study type", "next": "mapping-summary" },
+        { "label": "Back to home", "next": "home" }
+      ]
+    },
+    {
+      "id": "mapping-general",
+      "message": "General Mapping Process",
+      "answer": "1. Open Google Earth (Desktop).\n2. Under Temporary Places, create a new folder.\n3. Name the KMZ file per naming rules.\n4. Inside the folder, create one subfolder per study type (e.g., TMC).\n5. Search for locations in the order provided by the client.\n6. Add pins/polygons (proper colors & names). Refer to Study Data Bank for rules per study.\n   a. If applicable, identify sites needing multiple persons/machines.\n7. Save Place As (KMZ).",
+      "buttons": [
+        { "label": "KMZ naming rules", "next": "mapping-kmz-naming" },
+        { "label": "Back to mapping", "next": "mapping-home" },
+        { "label": "Back to home", "next": "home" }
+      ]
+    },
+    {
+      "id": "mapping-kmz-naming",
+      "message": "KMZ File Naming Rules",
+      "answer": "Format:\nMAP-(mm.dd.yyyy) (Client)-(Email Subject) (City, State)\n\nNotes:\n• Do not repeat city/state if already included in the subject line.\n• Use US date format (MM.DD.YYYY).\n• Trim if the file name is too long.\n\nRegion-specific:\n• South Central (TX/LA): Copy from Estimation Management → Proposal Line Items → Estimate Name. Replace 'ESTIMATE' with 'MAP'.\n• Northeast/Mid-Atlantic: Label KMZ with the client's email subject (from Rachel). Avoid generic names like 'estimate request'.",
+      "buttons": [
+        { "label": "Back to mapping", "next": "mapping-home" },
+        { "label": "Back to home", "next": "home" }
+      ]
+    },
+    {
+      "id": "mapping-locations",
+      "message": "Identifying Locations in Google Earth Pro",
+      "answer": "1. Search for the intersecting streets using ampersand (&) between road names.\n   • Do not include 'city' or 'county' in names unless required.\n\n2. Confirm the city:\n   a. Click Google Maps icon → click map → see location address.\n   b. If city is provided in the email, use that (even if Google differs).\n\n3. Confirm the county:\n   a. Go to StatsAmerica website.\n   b. Provide the project state and city.\n   c. You may also search via Google / Gemini.\n\nRoad Name Symbols:\n• State Road → SR (e.g., SR 99)\n• Country Road → CR (e.g., CR 455)\n• US Highways → US (e.g., US 1)\n• Interstate Highways → I (e.g., I 35W)",
+      "buttons": [
+        { "label": "Back to mapping", "next": "mapping-home" },
+        { "label": "Back to home", "next": "home" }
+      ]
+    },
+    {
+      "id": "mapping-distance",
+      "message": "Measuring Distance for Fuel Surcharge / Tier Check",
+      "answer": "1. Zoom out in Google Earth Pro, ensure My Places is enabled. Make sure the National Pricing Map (updated 10.21.2025.kmz) is added.\n\n2. Right-click the closest pricing tier pin → 'Directions from here'\n3. Right-click the farthest project location pin → 'Directions to here'\n4. Choose the first route result.\n\nFuel Surcharge by color zone:\n• Green: 1-10 loc=$30, 11-19=$50, 20+=$70\n• Yellow: 1-10 loc=$40, 11-19=$60, 20+=$80\n• Red: 1-10 loc=$50, 11-19=$70, 20+=$80",
+      "buttons": [
+        { "label": "Back to mapping", "next": "mapping-home" },
+        { "label": "Back to home", "next": "home" }
+      ]
+    },
+    {
+      "id": "mapping-summary",
+      "message": "Mapping Summary — which study type?",
+      "buttons": [
+        { "label": "TMC", "next": "map-tmc" },
+        { "label": "ATR", "next": "map-atr" },
+        { "label": "Camera Install (VID/CAM)", "next": "map-vid" },
+        { "label": "Radar (RAD)", "next": "map-rad" },
+        { "label": "Driveway/Trip Gen (DWY/TGN)", "next": "map-dwy" },
+        { "label": "Ped & Bike (P&B)", "next": "map-pb" },
+        { "label": "Mainline (MNL)", "next": "map-mnl" },
+        { "label": "Pedestrian (PED)", "next": "map-ped" },
+        { "label": "Parking (PKG)", "next": "map-pkg" },
+        { "label": "Queue (QUE)", "next": "map-que" },
+        { "label": "Drone (DRN)", "next": "map-drn" },
+        { "label": "On-Street Parking (OSP)", "next": "map-osp" },
+        { "label": "Back to mapping", "next": "mapping-home" }
+      ]
+    },
+    {
+      "id": "map-tmc",
+      "message": "TMC Mapping Rules",
+      "answer": "Pin Color: Yellow\nPin Placement: Middle of intersection\nPolygon: Yellow — Lines 3.0 width, 100% opacity; Area filled+outlined, 30% opacity\nPath: None\n\nNaming:\n• Folder: TMC\n• Default: TMC-001\n• Add (# PERSON) if more than 1 person: e.g., TMC-001 (2 PERSON)\n• Add (*-HR) if multiple durations: e.g., TMC-001 6HR\n\nPerson Count:\n• ≤15 lanes → 1 person\n• 16–22 lanes → 2 persons\n• ≥23 lanes → 3 persons\n• Add 1 person for cutouts (if road is large), RTOR (except FL), roundabouts\n\nPolygon must include: pedestrian stoplines, cutouts, crosswalks, and sidewalks tightly with no extra spaces.",
+      "buttons": [
+        { "label": "Back to mapping summary", "next": "mapping-summary" },
+        { "label": "Back to home", "next": "home" }
+      ]
+    },
+    {
+      "id": "map-atr",
+      "message": "ATR Mapping Rules",
+      "answer": "Pin Color: Red\n• South Central with speed request: Green\n\nPin Placement: Middle of road, opposite a pole, signage, or fire hydrant. If none available, add ??? at the end of the pin name.\nPolygon: None\nPath: None\n\nNaming:\n• Folder: ATR\n• TX & NoCal: ATR-001\n• SoCal: ATR-001 24-HR VOLUME\n• FL, SE, NE, Mid-Atlantic:\n  ATR-001 24-HR VOLUME (1 MACHINE)\n  ATR-001 24-HR VOLUME CLASS (2 MACHINES)\n  ATR-001 24-HR VOLUME CLASS SPEED (1 MACHINE MULTICLASS)\n  (and other combinations based on add-ons)\n\nNumber of Machines:\n• Volume only → per direction (1-way=1, 2-way=2)\n• With Class/Speed → per lane (excluding shared/turning lanes)\n• With Class/Speed but 1 lane only → '1 machine multiclass'\n• ATR approach → per leg",
+      "buttons": [
+        { "label": "Back to mapping summary", "next": "mapping-summary" },
+        { "label": "Back to home", "next": "home" }
+      ]
+    },
+    {
+      "id": "map-vid",
+      "message": "Camera Installation (VID/CAM) Mapping Rules",
+      "answer": "Pin Color: Sky Blue (VID) or Green (CAM)\nPolygon: None\nPath: Green (90° facing camera direction)\n\nPin Placement:\n• VID: Middle of the road\n• CAM: Side of the road, beside a post\n\nNaming:\n• VID-001\n• CAM-001\n\nNote: Replaces old ATR-camera.",
+      "buttons": [
+        { "label": "Back to mapping summary", "next": "mapping-summary" },
+        { "label": "Back to home", "next": "home" }
+      ]
+    },
+    {
+      "id": "map-rad",
+      "message": "Radar (RAD) Mapping Rules",
+      "answer": "Pin Color: Green\nPin Placement: Side of the road\nPolygon: None\nPath: None\n\nNaming:\n• Folder: RAD\n• Pin: RAD-001\n• Default 2 hours\n• Regular intersection/segment: 1 tech",
+      "buttons": [
+        { "label": "Back to mapping summary", "next": "mapping-summary" },
+        { "label": "Back to home", "next": "home" }
+      ]
+    },
+    {
+      "id": "map-dwy",
+      "message": "Driveway / Trip Generation (DWY/TGN) Mapping Rules",
+      "answer": "Pin Color: Yellow (Teal for South Central)\nPolygon:\n• South Central: No polygon\n• NE/Mid-Atlantic: Yellow polygon (3.0 width, 100% opacity; 30% opacity area)\nPath: None (Yellow polygon for NE/Mid-Atlantic only)\nPin Placement: Entrance (parking or driveway)\nCamera Placement: Default 'No Camera Placement' for FL/SE\n\nNaming:\n• DWY-001 — if driveway study\n• TGN-001 — if trip gen study",
+      "buttons": [
+        { "label": "Back to mapping summary", "next": "mapping-summary" },
+        { "label": "Back to home", "next": "home" }
+      ]
+    },
+    {
+      "id": "map-pb",
+      "message": "Ped & Bike (P&B) Mapping Rules",
+      "answer": "Pin Color: Pink (cams = Green; Blue for South Central)\nPolygon: Pink (30% opacity) — must include crosswalks and sidewalks\nPath: Green (90° facing camera)\n\nPin Placement:\n• P&B pin: Middle of intersection\n• CAM pin: Side of road, beside a post\n\nNaming:\n• Folder: P&B\n• Pin: P&B-001\n• Add (# PERSON) if more than 1 person\n• Add (*-HR) if multiple durations\n• Camera: CAM-001\n\nCamera count:\n• Regular intersection → 1 camera\n• Large intersection (200ft+) → 2 cameras\n\nNote: All regions except FL/SE allow cams.",
+      "buttons": [
+        { "label": "Back to mapping summary", "next": "mapping-summary" },
+        { "label": "Back to home", "next": "home" }
+      ]
+    },
+    {
+      "id": "map-mnl",
+      "message": "Mainline (MNL) Mapping Rules",
+      "answer": "Pin Color: Blue (cams = Green)\nPolygon: None\nPath: Green (90° facing camera)\n\nPin Placement:\n• MNL pin: Middle or between roads\n• CAM pin: Side of road, beside a post\n\nNaming:\n• Folder: MNL\n• Pin: MNL-001\n• Camera path: MNL-001\n\nImportant: All mainlines must have classification specified with FHWA breakdown.\nIf posted speed limit is 55mph, Wavetronix data and manual review are required.",
+      "buttons": [
+        { "label": "Back to mapping summary", "next": "mapping-summary" },
+        { "label": "Back to home", "next": "home" }
+      ]
+    },
+    {
+      "id": "map-ped",
+      "message": "Pedestrian (PED) Mapping Rules",
+      "answer": "Pin Color: Yellow (regular intersections) or Pink (zone)\nPolygon: Yellow (regular) or Pink (zone) — 3.0 width, 100% opacity; 30% opacity\nPath: None\n\nPin Placement: Middle of intersection/segment\n\nNaming:\n• Folder: PED\n• Pin: PED-001\n• Add (# PERSON) if more than 1 person\n• Add (*-HR) if multiple durations\n\nCamera count:\n• Regular intersection → 1 camera\n• Large intersection (200ft+) → 2 cameras\n\nPolygon must include: stoplines, pedestrian lanes, sidewalks, and illegal crossings/jaywalking areas.",
+      "buttons": [
+        { "label": "Back to mapping summary", "next": "mapping-summary" },
+        { "label": "Back to home", "next": "home" }
+      ]
+    },
+    {
+      "id": "map-pkg",
+      "message": "Parking (PKG) Mapping Rules",
+      "answer": "Pin Color: Any colored pin per site\nPolygon: Same color as pin, filled and outlined — 3.0 width, 100% opacity; 30% opacity\nPin Placement: Anywhere within the site\nNaming: PKG-001",
+      "buttons": [
+        { "label": "Back to mapping summary", "next": "mapping-summary" },
+        { "label": "Back to home", "next": "home" }
+      ]
+    },
+    {
+      "id": "map-que",
+      "message": "Queue Study (QUE) Mapping Rules",
+      "answer": "Pin: Green\nPolygon: None\nNaming: QUE-001\n\nNotes:\n• NoCal & LA (South Central): map and price like LA Unmet Demand.\n• NE/Mid-Atlantic: Create a queue and always put camera angle (200-300ft facing front of the vehicle).\n• Be aware of road curves.\n• Avoid placing cameras if there's a possible blockage (e.g., tree).\n• SoCal Snapshot Queues can be done with 1 live technician.",
+      "buttons": [
+        { "label": "Back to mapping summary", "next": "mapping-summary" },
+        { "label": "Back to home", "next": "home" }
+      ]
+    },
+    {
+      "id": "map-drn",
+      "message": "Drone (DRN) Mapping Rules",
+      "answer": "Pin Color: Violet\nPolygon: None\nNaming: DRN-001",
+      "buttons": [
+        { "label": "Back to mapping summary", "next": "mapping-summary" },
+        { "label": "Back to home", "next": "home" }
+      ]
+    },
+    {
+      "id": "map-osp",
+      "message": "On-Street Parking (OSP) Mapping Rules",
+      "answer": "Pin: Any\nPolygon: Path only\nNaming: OSP-001\n\nGuidelines:\n• No need to break the path between store/residential driveways/entrances.\n• Paths break on main streets ONLY and on big establishments ONLY IF THERE IS A STOPLIGHT.\n• If there is an alley, confirm with the area manager if the path needs to break or continue as 1 OSP + path.\n• Refer to RED LINE (updated) vs YELLOW LINE (old).",
+      "buttons": [
+        { "label": "Back to mapping summary", "next": "mapping-summary" },
+        { "label": "Back to home", "next": "home" }
+      ]
+    },
+
+    {
+      "id": "estimation-home",
+      "message": "Estimation — what do you need help with?",
+      "buttons": [
+        { "label": "Project record creation (Airtable)", "next": "estimation-project-record" },
+        { "label": "Estimate record creation", "next": "estimation-estimate-record" },
+        { "label": "Estimate line items", "next": "estimation-line-items" },
+        { "label": "Fuel surcharge line item", "next": "estimation-fuel" },
+        { "label": "Print & send estimate", "next": "estimation-send" },
+        { "label": "Naming conventions", "next": "estimation-naming" },
+        { "label": "Back to home", "next": "home" }
+      ]
+    },
+    {
+      "id": "estimation-project-record",
+      "message": "Project Record Creation — Airtable",
+      "answer": "1. Go to Airtable → login with CM team credentials.\n2. Open Project Management file for the relevant region.\n3. Go to Projects tab → ESTIMATES (Add/Edit) → Basic Details → click + to add one record per study type.\n\n   Fill in:\n   • Project Name = (Client)-(Email Subject) (City, State)\n   • Region\n   • Related Project (if any)\n   • Client contact (verify email/firm matches signature)\n   • Email CC (if any)\n   • IPO (if any)\n   • Project ID is auto-generated.\n\n4. Go to Project Info view → fill in:\n   • Locations, Service Type, Service Type Add Ons, City, County, State\n\n5. Go to Client Attachments view → upload:\n   • Client Map (screenshot via Win+Shift+S)\n   • Client Locations List (screenshot if multiple)\n   • Client template (if any)\n\n6. OPTIONAL: If video delivery requested → enter in Video Details view:\n   • Save Video? / Deliver Video? / Video Delivery Process / Notes",
+      "buttons": [
+        { "label": "Back to estimation", "next": "estimation-home" },
+        { "label": "Back to home", "next": "home" }
+      ]
+    },
+    {
+      "id": "estimation-estimate-record",
+      "message": "Estimate Record Creation — Estimation Management Airtable",
+      "answer": "1. Open Estimation Management file for the region.\n2. Under Proposals tab → Pending Proposals - NEW view → click + to create a new record.\n   Note: One record per project regardless of number of study types.\n3. In Estimate IDs column → click + → Create a new record.\n4. In the new record, supply:\n   • Proposal # (always 1)\n   • Project Name\n   • Office Address\n5. Note the Estimate ID under the Proposal column.",
+      "buttons": [
+        { "label": "Create line items", "next": "estimation-line-items" },
+        { "label": "Back to estimation", "next": "estimation-home" },
+        { "label": "Back to home", "next": "home" }
+      ]
+    },
+    {
+      "id": "estimation-line-items",
+      "message": "Create Estimate Line Items",
+      "answer": "In Estimation Management → Proposal Line Items tab → Add/Edit Details - NEW view:\n\n1. Create a new record → supply:\n   • Proposal #, sProjects, Pricing Region, Service Types, sService Type AddOns\n   • Pricing Model: always 'Custom'\n   • Tier: always '1'\n2. Check the 'Selections Complete' box.\n3. Supply:\n   • # Locations, # People (TMC), # Units (ATR), # Hours, # Days\n   • Custom Pricing Method: always 'By Location'\n4. In Custom Rate column, input calculation from Short Term Pricing Resource.\n   Consider: number of days, hours, location tier, region, study type, add-ons.\n5. Copy Rate Description column → paste in Custom Rate Description → delete '/WATCHES'.\n6. Enter collection time, days, and additional info (camera install, specific dates, etc.).\n7. If collection spans more than one day, revert # Days to '1' (Airtable auto-multiplies).\n8. Repeat for multiple line items. Create separate items for different schedules, study types, add-ons, or person counts.\n9. Note the Estimate Name in the last column.\n\n⚠️ Always check Client's default notes and requirements before generating an estimate.",
+      "buttons": [
+        { "label": "Fuel surcharge line item", "next": "estimation-fuel" },
+        { "label": "Back to estimation", "next": "estimation-home" },
+        { "label": "Back to home", "next": "home" }
+      ]
+    },
+    {
+      "id": "estimation-fuel",
+      "message": "Create Fuel Surcharge Line Item",
+      "answer": "Create a new line item under the same proposal ID:\n\n• sProjects (if multiple Project IDs, choose any)\n• Pricing Region\n• Service Types: always 'Fuel Surcharge'\n• Pricing Model: always 'Custom'\n• Tier: always '1'\n\nCheck 'Selections Complete' box, then supply:\n• # Locations: 1\n• # Days: 1\n• Custom Pricing Method: By Location\n• Custom Rate: (calculated or given fuel surcharge — minimum $25)\n• Custom Rate Description: Fuel Surcharge\n\nNote: No fuel surcharge if contract pricing is provided (including city contracts).",
+      "buttons": [
+        { "label": "Print & send estimate", "next": "estimation-send" },
+        { "label": "Back to estimation", "next": "estimation-home" },
+        { "label": "Back to home", "next": "home" }
+      ]
+    },
+    {
+      "id": "estimation-send",
+      "message": "Print & Send Estimate",
+      "answer": "Print Estimate Sheet:\n1. Click Extensions.\n2. Search for the Estimate using the Estimate ID.\n3. Check all details before printing.\n   Note: If line items overlap page footers, use the second template.\n4. Print.\n\nSending for Audit:\n• Follow proper file name formats.\n• Send: map (KMZ), estimate (PDF), and email (Outlook file).\n• In Estimation Management Airtable, change Proposal Status from 'In Progress' to 'Pending Approval'.\n\nAdd Location Slots:\n• Project Management → Locations tab → Add Locations and Date Ranges NEW view.\n• Add as many records as there are locations.\n• Fill in Location ID column with sequence numbers.\n\nChange Proposal Status after sending map + estimate to CM gc for audit:\n• Estimation Management → Proposals tab → Proposal Status → change to 'Proposal – Pending Approval'\n• Attach KMZ: Project Management → Pending CM Proposal filter → Project Attachments → attach KMZ",
+      "buttons": [
+        { "label": "Back to estimation", "next": "estimation-home" },
+        { "label": "Back to home", "next": "home" }
+      ]
+    },
+    {
+      "id": "estimation-naming",
+      "message": "Naming Conventions",
+      "answer": "File Path/Folder:\nRegion > Firm > (mm.dd.yyyy) (Client)-(Email Subject) (City, State)\n\nKMZ File Name:\nMAP-(mm.dd.yyyy) (Client)-(Email Subject) (City, State)\n\nProject Name:\n(Client)-(Email Subject) (City, State)\n\nEstimate File Name:\nESTIMATE_(Firm)_(Client)_(CityState)_(yyyy-mm-dd)_v#\n\nSouth Central (TX/LA) KMZ:\nCopy from Estimation Management → Proposal Line Items → Estimate Name (last column). Change 'ESTIMATE' to 'MAP'.",
+      "buttons": [
+        { "label": "Back to estimation", "next": "estimation-home" },
+        { "label": "Back to home", "next": "home" }
+      ]
+    },
+
+    {
+      "id": "pricing-home",
+      "message": "Pricing — what do you need help with?",
+      "buttons": [
+        { "label": "Tier pricing", "next": "pricing-tier" },
+        { "label": "Fuel surcharge computation", "next": "pricing-fuel" },
+        { "label": "TMC pricing rules", "next": "pricing-tmc" },
+        { "label": "ATR pricing rules", "next": "pricing-atr" },
+        { "label": "Discounts", "next": "pricing-discounts" },
+        { "label": "Minimum fee requirement", "next": "pricing-minfee" },
+        { "label": "Back to home", "next": "home" }
+      ]
+    },
+    {
+      "id": "pricing-tier",
+      "message": "Tier Pricing",
+      "answer": "Florida, Southeast, Southcentral:\n• Measure distance (miles) from closest pricing pin to farthest project location.\n• Miami-Dade County, Palm Beach County, Broward County: always Tier 1.\n• Gulf Coast/SW Florida counties (Charlotte, Collier, DeSoto, Glades, Hendry, Lee, Manatee, Sarasota): use the region boundary where the client's office address is.\n\nNoCal, Northeast, Mid-Atlantic:\n• Always given by the regional office.\n• For NE and Mid-Atlantic: measure distance from closest pricing pin.",
+      "buttons": [
+        { "label": "Back to pricing", "next": "pricing-home" },
+        { "label": "Back to home", "next": "home" }
+      ]
+    },
+    {
+      "id": "pricing-fuel",
+      "message": "Fuel Surcharge Computation",
+      "answer": "Minimum: $25\nNone if contract pricing is provided (including city contracts).\n15+ locations: confirm number of techs.\n\nFlorida & Southeast:\n(Mileage) × 2 × (# of trips) × (# of tech) × 0.13\n*Round up to nearest $5\n\nTMC trips (multiplier = days + 1):\n• 1 day = mi × 2 × 2 × 0.13\n• 2 days = mi × 2 × 3 × 0.13\n• 3 days = mi × 2 × 4 × 0.13\n\nATR trips (multiplier = # of roundtrips: setup, teardown, checks):\n• 1-2 days = mi × 2 × 2 × 0.13\n• 3 days = mi × 2 × 3 × 0.13\n• 4-7 days = mi × 2 × 4 × 0.13\n\nSouthcentral, Midwest & SoCal:\n(Mileage) × 2 × (# of trips) × (# of tech) × 0.20\n*Round up to nearest $5\n\nNoCal: always given; no fuel surcharge if not given.",
+      "buttons": [
+        { "label": "Back to pricing", "next": "pricing-home" },
+        { "label": "Back to home", "next": "home" }
+      ]
+    },
+    {
+      "id": "pricing-tmc",
+      "message": "TMC Pricing Rules",
+      "answer": "Normal TMC Pricing:\n• 2-8 hours TMC\n• Any duration with contract pricing\n\nCamera Installation pricing:\n• 9 hours and above TMC\n\nGreater than 4 hours:\n• Charge at 4-hour rate plus additional hour price\n\nPricing depends on: location (tier), duration (hours), person count.",
+      "buttons": [
+        { "label": "Back to pricing", "next": "pricing-home" },
+        { "label": "Back to home", "next": "home" }
+      ]
+    },
+    {
+      "id": "pricing-atr",
+      "message": "ATR Pricing Rules",
+      "answer": "Normal:\n• 2 lane maximum roadway\n\nLarge:\n• ≥4 lanes total (one way or bidirectional)\n• Applicable to all regions except NorCal\n• NE/Mid-Atlantic: Large = 3+ lanes\n\nFreeway:\n• High speed/heavy volume, meets safety requirements\n• Installed with 2-man team\n• Speed limit ≤55mph\n• If 70-80mph: use Mainline study and install pricing\n\nCamera Installation:\n• Road makes machine installation impossible (e.g., ramps, bridge)\n• Speed limit 70mph+\n\nVideo Review:\n• Multiply number of hours × per hour pricing\n• Add to camera installation price\n\nPricing depends on: location (tier + size), duration (days), add-ons.",
+      "buttons": [
+        { "label": "Back to pricing", "next": "pricing-home" },
+        { "label": "Back to home", "next": "home" }
+      ]
+    },
+    {
+      "id": "pricing-discounts",
+      "message": "Discounts",
+      "answer": "• New client discount: 15%\n• Volume discount: 10% (total amount > $10,000)\n\n⚠️ All discounts require approval from Area Manager before applying.",
+      "buttons": [
+        { "label": "Back to pricing", "next": "pricing-home" },
+        { "label": "Back to home", "next": "home" }
+      ]
+    },
+    {
+      "id": "pricing-minfee",
+      "message": "Minimum Fee Requirement",
+      "answer": "Requires approval from Shen. If unavailable, ask Christine.\n\nFor 3 hours and below:\n• Distance from Office (miles, one way): enter miles\n• Distance from Hotel to Worksite: leave blank/0\n• Nights at Hotel: leave blank/0\n• No. of Hotels: leave blank/0\n• No. of Vehicle Drivers: 1\n• No. of Technicians: 1\n• No. of Technician Full Working Days: leave blank/0\n• Partial Working Day Hours: (hours × 4) + install/teardown hours\n\nExample: 1 TMC 4hr 72.7mi 1hr15min\n→ 1.25 × 4 = 5hr + 1hr install/teardown = 6hr partial working day hours\n\nNote: Hotel usually applies if 3+ hours away.",
+      "buttons": [
+        { "label": "Back to pricing", "next": "pricing-home" },
+        { "label": "Back to home", "next": "home" }
+      ]
+    },
+
+    {
+      "id": "psu-home",
+      "message": "PSU — what do you need help with?",
+      "buttons": [
+        { "label": "PSU file naming", "next": "psu-naming" },
+        { "label": "Step 1: Review request", "next": "psu-step1" },
+        { "label": "Step 2: Add date ranges", "next": "psu-step2" },
+        { "label": "Step 3: Add street names", "next": "psu-step3" },
+        { "label": "Step 4: Add other details", "next": "psu-step4" },
+        { "label": "Step 5: Approval & sequencing", "next": "psu-step5" },
+        { "label": "Step 6: Print cover sheet", "next": "psu-step6" },
+        { "label": "Step 7: Sending", "next": "psu-step7" },
+        { "label": "Region area codes", "next": "psu-codes" },
+        { "label": "Back to home", "next": "home" }
+      ]
+    },
+    {
+      "id": "psu-naming",
+      "message": "PSU File Naming",
+      "answer": "KMZ: (Approved Estimate ID)_(City, State)_Map V1.0\nCover Sheet: (Approved Estimate ID)_(City, State)_Cover Sheet V1.0\nEstimate: (Approved Estimate ID)_(City, State)_Estimate V1.0\n\nMultiple versions: replace V1.0 with V1.1, V1.2…\nMultiple project IDs: one cover sheet per project ID, but only one map and estimate with all project IDs in file names (separated by comma).\n\nFile Folders: Region > Date > (Approved Estimate ID)_(City, State)",
+      "buttons": [
+        { "label": "Back to PSU", "next": "psu-home" },
+        { "label": "Back to home", "next": "home" }
+      ]
+    },
+    {
+      "id": "psu-step1",
+      "message": "PSU Step 1: Review Request",
+      "answer": "The CM team receives PSU requests via email.\n\nNote:\n• PSU details (collection time, due date, hard due date, urgency)\n• Location (region, region boundary, city, state)\n• Estimate ID\n\nActions:\n• Print email to PDF (block any pricing in the email)\n• Download all attachments (map, estimate, client attachment, IPO)\n• If client attachment is JPG/PNG → convert to PDF\n• Find Project ID by searching Estimate ID in Estimation Management Airtable → Pending Proposals\n• Double-check in Project Management Airtable → Basic Details, Project Info, Client Attachments, Video Details",
+      "buttons": [
+        { "label": "Step 2: Add date ranges", "next": "psu-step2" },
+        { "label": "Back to PSU", "next": "psu-home" }
+      ]
+    },
+    {
+      "id": "psu-step2",
+      "message": "PSU Step 2: Add Date Ranges",
+      "answer": "In Project Management Airtable → Locations tab → Add Locations and Date Range:\n\nInput:\n• Location Type\n• Cams (if any)\n• Watches (if any)\n• Watching Speed (if any)\n\nClick + in date range column → create new record:\n• Start Date\n• End Date (same as start if 1 collection day)\n• Collection Days (check calendar for day of week)\n• Number of Days\n• Collection Time (add new record if time not in options)\n\nCopy the record to other locations with the same schedule/project number.\nCreate a new record for each variation of collection time, days, or add-ons.",
+      "buttons": [
+        { "label": "Step 3: Add street names", "next": "psu-step3" },
+        { "label": "Back to PSU", "next": "psu-home" }
+      ]
+    },
+    {
+      "id": "psu-step3",
+      "message": "PSU Step 3: Add Street Names",
+      "answer": "In Project Management Airtable → Locations tab → Add Street Names:\n\n• Input street names for each location.\n• Input location notes in ALL CAPS if applicable:\n  - 9HR, 2HR, 5HR → if multiple collection durations (use uncommon ones)\n  - 2 PERSON → if multiple techs assigned\n  - CAMERA INSTALLATION\n  - VOLUME, CLASS, SPEED → always include for ATR/ADT\n  - GPS Coordinates",
+      "buttons": [
+        { "label": "Step 4: Add other details", "next": "psu-step4" },
+        { "label": "Back to PSU", "next": "psu-home" }
+      ]
+    },
+    {
+      "id": "psu-step4",
+      "message": "PSU Step 4: Add Other Details",
+      "answer": "In Project Management Airtable → Projects tab → Due Date Details:\n• Due Date\n• Hard Due Date (if urgency is 'Promised to Client')\n• Urgency\n\nIn Project Notes view:\n• Input project notes if any.\n• Upload the map sent with the PSU request.\n  Note: If a map was already uploaded, delete it and upload the most updated one.",
+      "buttons": [
+        { "label": "Step 5: Approval & sequencing", "next": "psu-step5" },
+        { "label": "Back to PSU", "next": "psu-home" }
+      ]
+    },
+    {
+      "id": "psu-step5",
+      "message": "PSU Step 5: Approval & Sequencing",
+      "answer": "1. Estimation Management Airtable → Proposals tab → change Proposal Status from 'Pending Approval' to 'Approved'\n\n2. Project Management Airtable → Projects tab → Ready for Project Sequence ID view → in Project Sequence column, click + → type double spaces in the search bar → select the first result.\n   Note: If the first result is '001', do not select — go to Approved Basic Details view and check the next sequence under the region boundary.\n\n3. Note the Project Sequence ID from Estimation Management → Approved Proposals.",
+      "buttons": [
+        { "label": "Step 6: Print cover sheet", "next": "psu-step6" },
+        { "label": "Back to PSU", "next": "psu-home" }
+      ]
+    },
+    {
+      "id": "psu-step6",
+      "message": "PSU Step 6: Print Cover Sheet",
+      "answer": "1. Project Management Airtable → Projects tab → click Extensions (top right).\n2. Search for the Project Sequence ID generated.\n   Note: Select 'All Projects' view or the project ID won't appear.\n   Note: Customize pages (1-1, 1-2, etc.) depending on number of pages.\n3. Merge the printed cover sheet with the client's attachment and printed email respectively.",
+      "buttons": [
+        { "label": "Step 7: Sending", "next": "psu-step7" },
+        { "label": "Back to PSU", "next": "psu-home" }
+      ]
+    },
+    {
+      "id": "psu-step7",
+      "message": "PSU Step 7: Sending",
+      "answer": "1. Follow proper file name formats.\n2. Double check everything before sending.\n3. Send the following for audit:\n   • Map (KMZ file)\n   • Estimate (PDF file)\n   • Email (Outlook file)\n   • Merged cover sheet–attachment–PSU email (PDF file)\n4. Add coordinates in Airtable under Location Tab.\n5. Compress all PDF files before sending (use I PDF / PDF Combiner).\n\n⚠️ Do NOT copy/paste details from other tabs — this merges data across projects.\n⚠️ Always check the email thread for any rates or prices and redact them accordingly.",
+      "buttons": [
+        { "label": "Back to PSU", "next": "psu-home" },
+        { "label": "Back to home", "next": "home" }
+      ]
+    },
+    {
+      "id": "psu-codes",
+      "message": "Region Area Codes — which region?",
+      "buttons": [
+        { "label": "Florida", "next": "psu-codes-fl" },
+        { "label": "Southeast", "next": "psu-codes-se" },
+        { "label": "SoCal", "next": "psu-codes-socal" },
+        { "label": "NoCal", "next": "psu-codes-nocal" },
+        { "label": "Southcentral", "next": "psu-codes-sc" },
+        { "label": "Northeast", "next": "psu-codes-ne" },
+        { "label": "Midwest", "next": "psu-codes-mw" },
+        { "label": "Back to PSU", "next": "psu-home" }
+      ]
+    },
+    {
+      "id": "psu-codes-fl",
+      "message": "Florida Region Codes",
+      "answer": "• 25-12xxxx — Tampa Region\n• 25-13xxxx — Orlando Region\n• 25-14xxxx — Metro Miami Region\n• 25-52xxxx — Jacksonville Region",
+      "buttons": [{ "label": "Back to region codes", "next": "psu-codes" }]
+    },
+    {
+      "id": "psu-codes-se",
+      "message": "Southeast Region Codes",
+      "answer": "• 25-21xxxx — Birmingham (Northern), AL\n• 25-18xxxx — Atlanta, GA\n• 25-19xxxx — Knoxville, TN\n• 25-20xxxx — Nashville, TN\n• 25-16xxxx — Raleigh, NC\n• 25-17xxxx — Charlotte, NC\n• 25-15xxxx — Columbia, SC",
+      "buttons": [{ "label": "Back to region codes", "next": "psu-codes" }]
+    },
+    {
+      "id": "psu-codes-socal",
+      "message": "SoCal Region Codes",
+      "answer": "• 25-01xxxx — Orange County\n• 25-02xxxx — Los Angeles\n• 25-03xxxx — Inland Empire\n• 25-04xxxx — San Diego\n• 25-05xxxx — Central Coast\n• 25-06xxxx — Central Valley",
+      "buttons": [{ "label": "Back to region codes", "next": "psu-codes" }]
+    },
+    {
+      "id": "psu-codes-nocal",
+      "message": "NoCal Region Codes",
+      "answer": "• 25-07xxxx — Sacramento\n• 25-08xxxx — Bay Area\n• 25-09xxxx — Central Valley\n• 25-10xxxx — Far North\n• 25-11xxxx — Nevada/Northern Sierra",
+      "buttons": [{ "label": "Back to region codes", "next": "psu-codes" }]
+    },
+    {
+      "id": "psu-codes-sc",
+      "message": "Southcentral Region Codes",
+      "answer": "• 25-22xxxx — Alabama (Southern)\n• 25-23xxxx — LA Louisiana (New Orleans)\n• 25-24xxxx — LA Louisiana (Baton Rouge)\n• 25-44xxxx — Mississippi\n• 25-45xxxx — TX Houston\n• 25-46xxxx — TX Austin\n• 25-47xxxx — TX Dallas\n• 25-48xxxx — TX San Antonio\n• 25-53xxxx — LA Louisiana (Lafayette)\n• 25-54xxxx — LA Louisiana (Shreveport)",
+      "buttons": [{ "label": "Back to region codes", "next": "psu-codes" }]
+    },
+    {
+      "id": "psu-codes-ne",
+      "message": "Northeast Region Codes",
+      "answer": "• 25-25xxxx — NE Virginia (Southern)\n• 25-26xxxx — NE Virginia (Northern)\n• 25-27xxxx — NE Washington D.C.\n• 25-28xxxx — NE Maryland\n• 25-29xxxx — NE West Virginia\n• 25-30xxxx — NE Delaware\n• 25-31xxxx — NE Pennsylvania (Eastern)\n• 25-32xxxx — NE Pennsylvania (Central)\n• 25-33xxxx — NE Pennsylvania (Western)\n• 25-34xxxx — NE New Jersey\n• 25-35xxxx — NE New York (NYC)\n• 25-37xxxx — NE New York (Long Island)\n• 25-38xxxx — NE New York (Eastern)\n• 25-39xxxx — NE New York (Central)\n• 25-40xxxx — NE New York (Western)\n• 25-41xxxx — NE Connecticut\n• 25-42xxxx — NE Massachusetts (Western)\n• 25-43xxxx — NE Massachusetts (Eastern)\n• 25-62xxxx — NE Maine",
+      "buttons": [{ "label": "Back to region codes", "next": "psu-codes" }]
+    },
+    {
+      "id": "psu-codes-mw",
+      "message": "Midwest Region Codes",
+      "answer": "• 25-78xxxx — Chicago, IL",
+      "buttons": [{ "label": "Back to region codes", "next": "psu-codes" }]
+    },
+
+    {
+      "id": "study-home",
+      "message": "Study Types — which study do you need information about?",
+      "buttons": [
+        { "label": "TMC — Turning Movement Counts", "next": "study-tmc" },
+        { "label": "ATR — Automatic Traffic Recorder", "next": "study-atr" },
+        { "label": "RAD — Radar / Spot Speed", "next": "study-rad" },
+        { "label": "DWY/TGN — Driveway / Trip Gen", "next": "study-dwy" },
+        { "label": "PED — Pedestrian Counts", "next": "study-ped" },
+        { "label": "P&B — Ped & Bike Study", "next": "study-pb" },
+        { "label": "SCN — Screenline", "next": "study-scn" },
+        { "label": "GAP — Gap Study", "next": "study-gap" },
+        { "label": "MNL — Mainline", "next": "study-mnl" },
+        { "label": "QUE — Queue Study", "next": "study-que" },
+        { "label": "UNM — Unmet Demand", "next": "study-unm" },
+        { "label": "PKG — Parking", "next": "study-pkg" },
+        { "label": "DRN — Drone", "next": "study-drn" },
+        { "label": "OSP — On-Street Parking", "next": "study-osp" },
+        { "label": "Back to home", "next": "home" }
+      ]
+    },
+    {
+      "id": "study-tmc",
+      "message": "TMC — what do you need?",
+      "buttons": [
+        { "label": "Definition", "next": "def-tmc" },
+        { "label": "Default rate description", "next": "rate-tmc" },
+        { "label": "Add-ons by region", "next": "addons-tmc" },
+        { "label": "Pricing rules", "next": "pricing-tmc" },
+        { "label": "Mapping rules", "next": "map-tmc" },
+        { "label": "Back to study types", "next": "study-home" }
+      ]
+    },
+    {
+      "id": "def-tmc",
+      "message": "TMC — Definition",
+      "answer": "Turning Movement Counts (TMC) collect data on the number of vehicles making specific turns (left, right, u-turn, or straight) at an intersection over a set period. Typically conducted during peak hours. TMC data is collected via camera/video recording.",
+      "buttons": [{ "label": "Back to TMC", "next": "study-tmc" }]
+    },
+    {
+      "id": "rate-tmc",
+      "message": "TMC — Default Rate Description",
+      "answer": "• Default duration: 4 hours for AM and PM peak periods (7:00-9:00AM & 4:00-6:00PM)\n• Default weekday collection: Tuesday, Wednesday, or Thursday\n• Default weekend duration: 3 hours (11:00AM-2:00PM)\n\nRate Description Format:\nTurning Movement Counts (1-Day, 4hr)\nw/Pedestrians, Bicycles\n1 PERSON COUNT(S)\n7:00-9:00AM & 4:00-6:00PM\nWeekday",
+      "buttons": [{ "label": "Back to TMC", "next": "study-tmc" }]
+    },
+    {
+      "id": "addons-tmc",
+      "message": "TMC — Default Add-ons by Region",
+      "answer": "Florida:\n• Pedestrian, Bicycle, Heavy Trucks (FHWA 4+), Signal Phasing, Signal Timing, Sketch\n• Kimley Horn Tampa & Plantation (Ian Rairden): always add RTOR\n\nSoutheast, NorCal:\n• Pedestrian, Bicycle, Heavy Trucks (FHWA 4+)\n\nNortheast, Mid-Atlantic:\n• Pedestrian, Bicycle, Passenger Vehicle (FHWA 1-3), Heavy Trucks (FHWA 4+)\n• Dolan & Dean, Gorove Slade: add Video Delivery\n\nSouthcentral, SoCal:\n• Volume unless specified\n• Carlson, Brigance & Doering (TX): Pedestrians, Bicycles, Heavy Trucks (FHWA 4+), Buses (All), Scooters\n• WGI, Deshazo Group, TJKM: Pedestrians, Bicycles, Heavy Trucks\n\nCommon Other Add-ons:\n• RTOR (signalized only; all FL locations regardless)\n• U-Turns\n• Buses (FHWA 4)\n• Medium Trucks (FHWA 5-7)\n• TTSTs/Combo Unit Trucks (FHWA 8-13)\n\n3-bin Classification:\n• Passenger Vehicles (FHWA 1-3)\n• Duals/Single Unit Trucks (FHWA 4-7)\n• Heavy Trucks (FHWA 8-13)",
+      "buttons": [{ "label": "Back to TMC", "next": "study-tmc" }]
+    },
+    {
+      "id": "study-atr",
+      "message": "ATR — what do you need?",
+      "buttons": [
+        { "label": "Definition", "next": "def-atr" },
+        { "label": "Default rate description", "next": "rate-atr" },
+        { "label": "Default add-ons", "next": "addons-atr" },
+        { "label": "Pricing rules", "next": "pricing-atr" },
+        { "label": "Mapping rules", "next": "map-atr" },
+        { "label": "Back to study types", "next": "study-home" }
+      ]
+    },
+    {
+      "id": "def-atr",
+      "message": "ATR — Definition",
+      "answer": "Automatic Traffic Recorder (ATR) is a device that automatically collects traffic data such as vehicle counts, classifications, and speeds. Installed along roadway segments. Data is summarized as Average Daily Traffic (ADT) — average vehicles passing a point over 24 hours. Also called tube counts or machine counts.",
+      "buttons": [{ "label": "Back to ATR", "next": "study-atr" }]
+    },
+    {
+      "id": "rate-atr",
+      "message": "ATR — Default Rate Description",
+      "answer": "• Default duration: 24 hours\n• Default collection day: Weekday\n• Default add-on: Volume\n\nRate Description Format:\nMachine Count (1-Day, 24hr)\nw/Volume, Class, Speed\nWeekday\n\nFor multiple days: Machine Count (2-Day, 48hr) — note total days and total hours.",
+      "buttons": [{ "label": "Back to ATR", "next": "study-atr" }]
+    },
+    {
+      "id": "addons-atr",
+      "message": "ATR — Default Add-ons by Region",
+      "answer": "All regions (FL, SE, SoCal, NorCal, Southcentral, NE, Mid-Atlantic):\n• Volume (default)\n\nOther add-ons as requested:\n• Speed\n• Classification",
+      "buttons": [{ "label": "Back to ATR", "next": "study-atr" }]
+    },
+    {
+      "id": "study-rad",
+      "message": "Radar (RAD) — Spot Speed Study",
+      "answer": "Definition: Collects accurate and reliable data on vehicle speed.\n\nDefault Rate Description:\nRadar (Spot Speed) Study (1-Day, 2hr)\n100 samples total or 2hr max per Interval (whichever comes first)\nWeekday\n\nSoCal & NoCal add: 9:00AM-4:00PM to the rate description.\n\nOther regions: Up to 125 samples (refer to client request).\n\nPricing: Radar Average Volume (1 Hour) as default.\nSoCal: Low Volume Rate applies.\n\nCommon add-ons:\n• 100 samples per location per direction (default)\n• 200 samples per location per direction\nCollection window: 9AM-4PM",
+      "buttons": [
+        { "label": "Mapping rules", "next": "map-rad" },
+        { "label": "Back to study types", "next": "study-home" }
+      ]
+    },
+    {
+      "id": "study-dwy",
+      "message": "Driveway / Trip Generation (DWY/TGN)",
+      "answer": "Definition: Collects total volume counts of all vehicle types entering/exiting an establishment (parking lot, private building, gas station, etc.). Trip Generation tracks vehicles going IN vs. OUT.\n\nDefault:\n• No default collection time (use same as related study if applicable)\n• Default day: Weekday\n\nDefault Add-ons:\n• w/In & Out Volume Count (unless client requests specific classification)\n• w/Camera Installation (if more than 8hrs)\n\nPricing:\n• 8hrs and below: charge as TMC pricing\n• Above 8hrs: Camera Installation + Video Review (usually 4x speed)\n\nNotes per region if applicable.",
+      "buttons": [
+        { "label": "Mapping rules", "next": "map-dwy" },
+        { "label": "Back to study types", "next": "study-home" }
+      ]
+    },
+    {
+      "id": "study-ped",
+      "message": "Pedestrian Counts (PED)",
+      "answer": "Definition: Collects pedestrian data including crossings, sidewalk activity per direction & per side of street, and jaywalking.\n\nDefault collection day: Weekday\n\nCommon Add-ons:\n• Crosswalk\n• Screenline (sidewalk activity per direction & per side)\n• Sidewalk Activity (per direction)\n• Jaywalking\n• Age (Adults vs. Elderly vs. School-Aged)\n• Corner Activity (PED TMC)\n• In-line Skaters\n• Per Movement Grouping\n• Stroller Use, Trail Count, Walking Speed Timing\n• Signal Actuation/Activation\n\nPricing:\n• Same as TMC pricing (tier, duration, person count)\n• 9hrs+: Camera Installation + Video Review\n• 8hrs and below: regular TMC pricing",
+      "buttons": [
+        { "label": "Mapping rules", "next": "map-ped" },
+        { "label": "Back to study types", "next": "study-home" }
+      ]
+    },
+    {
+      "id": "study-pb",
+      "message": "Ped & Bike Study (P&B)",
+      "answer": "Definition: Collects data on pedestrians and bicycles at an intersection over a set period. Data collected via camera/video recording.\n\nDefault collection day: Weekday\n\nCommon Add-ons:\n• Crosswalk, Screenline, Sidewalk Activity, Jaywalking\n• Age (Adults vs. Elderly vs. School-Aged)\n• Corner Activity, In-line Skaters\n• Per Movement Grouping, Stroller Use, Trail Count\n• Walking Speed Timing, Signal Actuation/Activation\n\nPricing:\n• Depends on tier, duration, person count\n• 9hrs+: Camera Installation + Video Review",
+      "buttons": [
+        { "label": "Mapping rules", "next": "map-pb" },
+        { "label": "Back to study types", "next": "study-home" }
+      ]
+    },
+    {
+      "id": "study-scn",
+      "message": "Screenline (SCN)",
+      "answer": "Definition: Collects data on pedestrians and bicycles making specific turns at an intersection/segment over a set period. Data collected via camera/video recording.\n\nDefault duration: 4 hours (7:00-9:00AM & 4:00-6:00PM)\nDefault collection day: Weekday\n\nDefault Add-ons (all regions):\n• Pedestrian, Bicycle, Crosswalk, Sidewalk Activity\n\nPricing: Camera Installation pricing & video review from Short Term Pricing Resource. Depends on tier, duration, person count. Watch speed varies by location size.",
+      "buttons": [
+        { "label": "Back to study types", "next": "study-home" }
+      ]
+    },
+    {
+      "id": "study-gap",
+      "message": "Gap Study (GAP)",
+      "answer": "Definition: Measures the range/distance between the rear of a subject vehicle and the front bumper of the following vehicle in the target lane. A primary safety measure for lane changes.\n\nDefault duration: 4 hours (7:00-9:00AM & 4:00-6:00PM)\nDefault collection day: Weekday\n\nCommon Add-ons:\n• Per Both Directions Combined\n• Per Direction\n• Per Direction and Per Both Directions Combined\n\nPricing:\n• From Short Term Pricing Resource (tier, duration, person count)\n• 9hrs+: Camera Installation + Video Review\n\nNortheast/Mid-Atlantic:\n• Gap with provided video: $100 for 1st hour, $35 for each subsequent hour\n• Regular Gap Study: Camera Installation with regular speed\n• Gap studies made for proposed roads (e.g., future driveways)",
+      "buttons": [
+        { "label": "Back to study types", "next": "study-home" }
+      ]
+    },
+    {
+      "id": "study-mnl",
+      "message": "Mainline Study (MNL)",
+      "answer": "Definition: Collects data on the number of vehicles on a roadway segment.\n\nDefault duration: 4 hours (7:00-9:00AM & 4:00-6:00PM)\nDefault weekday: Tuesday, Wednesday, or Thursday\nDefault weekend: 3 hours (11:00AM-2:00PM)\n\nDefault Add-ons: Same as TMC by region.\nCommon Other Add-ons: Same as TMC.\n3-bin classification: Same as TMC.\n\nPricing: From Short Term Pricing Resource. Depends on tier, duration, person count. 9hrs+: Camera Installation + Video Review.\n\n⚠️ All mainlines must specify classification with FHWA breakdown. If posted speed is 55mph, Wavetronix data and manual review required.",
+      "buttons": [
+        { "label": "Mapping rules", "next": "map-mnl" },
+        { "label": "Back to study types", "next": "study-home" }
+      ]
+    },
+    {
+      "id": "study-que",
+      "message": "Queue Study (QUE)",
+      "answer": "Definition: Analyzes buildup, length, and behavior of vehicle queues at intersections, toll booths, or bottlenecks. Examines wait times, queue length, arrival patterns, and service rates.\n\nNoCal & LA (South Central): Map and price like LA Unmet Demand.\n\nPricing varies by region:\n• NE/Mid-Atlantic: Camera at 200-300ft facing front of vehicle, reviewed at 2x speed\n• NoCal: $75 × number of hours; Initial Queue = standard; Regular Queue = additional camera; Drive-thru = live tech\n• SoCal: Snapshot with 1 live tech; 5-min increments; $15 every hr of processing; 1 tech = 1 drive-thru",
+      "buttons": [
+        { "label": "Mapping rules", "next": "map-que" },
+        { "label": "Back to study types", "next": "study-home" }
+      ]
+    },
+    {
+      "id": "study-unm",
+      "message": "Unmet Demand Study (UNM)",
+      "answer": "Definition: Collects data on vehicles unable to pass a green light (demand that exceeds capacity).\n\nApplicable regions: TX, LA, NE, Mid-Atlantic\n\nDefault Rate Description:\nUnmet Demand Study (1-Day, 4hr)\n1 signalized Intersection\n- 15 Min Intervals (per approach)\n- # of vehicles queued\n- length/landmark-based queue if queue is too long\n* 3 Cameras\n07:00-09:00 & 16:00-18:00 | WKDY\n\nPricing:\n(Video watching rate × hours × cameras) ÷ 4x speed + extra camera installs\nExample: $35 × 4hrs = $140 × 3 cameras = $420 ÷ 4 = $105 + $205 + $205 = $515\nTMC cam: charge video review only. Other 2 cams: charge video review + camera installation, all at 4x speed.",
+      "buttons": [
+        { "label": "Back to study types", "next": "study-home" }
+      ]
+    },
+    {
+      "id": "study-pkg",
+      "message": "Parking Study (PKG)",
+      "answer": "Definitions:\n• Off-Street Parking (PKG-001): Parking within an establishment or structure.\n• On-Street Parking (OSP-001): Parking along a street, segment, or open lot.\n• Parking Occupancy: How many spaces are occupied + last 4 digits of license plate.\n• Parking Turnover: How long each vehicle was parked (duration).\n• Parking Inventory: How many spaces are available (20-22ft per space, always included in pricing — NON-NEGOTIABLE).\n\nFuel Surcharge for Parking:\n• Regular: Fuel = mileage × 2 × 2 trips × (# tech) × 0.13\n• If collection >8hrs, technician count doubles for fuel calculation.\n• Parking fuel always computed separately from other studies.",
+      "buttons": [
+        { "label": "Mapping rules", "next": "map-pkg" },
+        { "label": "Parking guidelines", "next": "study-pkg-guidelines" },
+        { "label": "Back to study types", "next": "study-home" }
+      ]
+    },
+    {
+      "id": "study-pkg-guidelines",
+      "message": "Parking Study Guidelines",
+      "answer": "Off-Street Parking:\n1. Create the inventory path — ensure efficient route with least overlap.\n2. Apply 20% reduction to mileage for occupancy path.\n   Example: 2.50 miles − 20% = 2.00 miles (use for occupancy)\n3. Use 2.50 miles to get Suggested Inventory Hours from pricing sheet.\n4. Technician capacity: 75% work / 25% break (45 min work + 15 min rest per hour).\n\nFor Peak Hour Studies:\n• Use full collection window (60 min) for hourly sweeps to determine tech count.\n• Technician can rest between peak periods.\n\nFor On-Street Parking:\n• No 20% reduction applied.\n• Use normal path mileage for both inventory and occupancy.\n\nTech Count Formula:\n• Continuous (e.g., 7AM-6PM): 45 min baseline → if time slightly exceeds, 1 tech may still suffice\n• Peak hours: 60 min baseline → any sweep under 60 min requires only 1 tech for hourly sweeps\n• Interval calculation: suggested minutes ÷ sweep interval = # techs needed",
+      "buttons": [
+        { "label": "Back to parking", "next": "study-pkg" },
+        { "label": "Back to study types", "next": "study-home" }
+      ]
+    },
+    {
+      "id": "study-drn",
+      "message": "Drone Study (DRN)",
+      "answer": "Collects aerial imagery for traffic and site analysis.\n\nMapping: Violet pin, no polygon. Naming: DRN-001.",
+      "buttons": [
+        { "label": "Back to study types", "next": "study-home" }
+      ]
+    },
+    {
+      "id": "study-osp",
+      "message": "On-Street Parking (OSP)",
+      "answer": "Refers to parking space along the street, segment, or open lot.\n\nMapping: Path only (no polygon fill).\nNaming: OSP-001\n\nGuidelines:\n• No need to break path at store/residential driveways/entrances.\n• Break paths at main streets ONLY and at big establishments with a stoplight.\n• If alley: confirm with area manager whether to break or continue with 1 OSP + path.\n• Refer to RED LINE (updated) vs YELLOW LINE (old).",
+      "buttons": [
+        { "label": "Back to study types", "next": "study-home" }
+      ]
+    },
+
+    {
+      "id": "qc-home",
+      "message": "Self-QC Checklist — which deliverable?",
+      "buttons": [
+        { "label": "Map QC", "next": "qc-map" },
+        { "label": "Estimate QC", "next": "qc-estimate" },
+        { "label": "PSU QC", "next": "qc-psu" },
+        { "label": "QC scoring criteria", "next": "qc-scores" },
+        { "label": "Back to home", "next": "home" }
+      ]
+    },
+    {
+      "id": "qc-map",
+      "message": "Map Self-QC Checklist",
+      "answer": "Check the following:\n• File name format\n• Location (if unmatched between client list and client map → inform area manager and ask which to use)\n• Person count\n• Cut out",
+      "buttons": [{ "label": "Back to QC", "next": "qc-home" }]
+    },
+    {
+      "id": "qc-estimate",
+      "message": "Estimate Self-QC Checklist",
+      "answer": "Check the following:\n• File name\n• Logo\n• Client's name and office address\n• City / Job Ref\n• IPO (if any)\n• Rate description\n• Study type & format\n• # of Days & Hours\n• Classification\n• Standard add-ons (check Updates per Region tab)\n• Special requests/instructions (e.g., adult peds vs school-aged peds)\n• Person count\n• Collection hour and day\n• Tier\n• Fuel surcharge (if Tier 3, minimum fee required)\n• Price — manual computation\n• Area Manager's email and local office address\n• Remittance office address\n• Discount? (always ask area manager before applying)\n  - New client: 15%\n  - Volume: 10% (total > $10k)\n• County\n• Proposal Status Update",
+      "buttons": [{ "label": "Back to QC", "next": "qc-home" }]
+    },
+    {
+      "id": "qc-psu",
+      "message": "PSU Self-QC Checklist",
+      "answer": "Check the following:\n• Extra spaces and/or punctuation\n• Misspelling/typographical errors\n• Custom ID\n• PSU version\n• IPO number\n• City, County, or State\n• Client attachment\n• Location notes\n• Location naming\n• Redact pricing\n• Print format\n• Merging order\n• Incorrect file attachment\n• Missing client contact number\n• Collection time\n• Location quantity\n• Client name\n• Client firm and office address\n• Service type\n• Due date and urgency\n• Number of days\n• Add-ons\n• Client map attachment\n• Video requirements\n• Email to Area Template/Attachments\n• Collection day\n• Orientation",
+      "buttons": [{ "label": "Back to QC", "next": "qc-home" }]
+    },
+    {
+      "id": "qc-scores",
+      "message": "QC Scoring Criteria",
+      "answer": "Minor Error (-1):\n• Map file name format/version, extra spaces, misspelling, study type folder\n• Estimate: extra spaces, misspelling, estimate version, rate order of line items, missing project name, missing client contact number\n• PSU: extra spaces, misspelling, custom ID, PSU version\n• Audit: screenshot conversation\n\nMajor Error (-5):\n• Map: pin/polygon color, pin naming, machine count, city/county/state, person counts, street view pinning, print format\n• Estimate: IPO number, city/county/state, local/remittance address, outdated contact, project name, rate description format, CC and client email, merge format, file name PSU\n• PSU: IPO, city/county/state, client attachment, location notes/naming, redact pricing, print format, merging order, incorrect attachment\n• Audit: status update\n\nAuto Fail (-100):\n• Map: incorrect/missing location, incorrect ATR add-on naming, incorrect collection hours in pin, polygon/path coverage, region boundary, order of locations, client's requests\n• Estimate: collection time, location quantity, client name, firm/office address, service type, fuel surcharge, discount, region code/project number, number of days, add-ons, video requirements, logo, person count, region/client standard, year\n• PSU: incorrect/missing location, pricing, project notes, collection time, client form/office address, service type, due date, urgency, number of days, add-ons, client map attachment, video requirements, email to area, collection day, orientation, number sequencing, project attachment, year",
+      "buttons": [{ "label": "Back to QC", "next": "qc-home" }]
+    },
+
+    {
+      "id": "regions-home",
+      "message": "Office Locations & Regions — which region?",
+      "buttons": [
+        { "label": "Florida", "next": "region-fl" },
+        { "label": "Southeast", "next": "region-se" },
+        { "label": "SoCal", "next": "region-socal" },
+        { "label": "NorCal", "next": "region-nocal" },
+        { "label": "Southcentral (TX)", "next": "region-sc-tx" },
+        { "label": "Southcentral (LA)", "next": "region-sc-la" },
+        { "label": "Northeast", "next": "region-ne" },
+        { "label": "Mid-Atlantic", "next": "region-ma" },
+        { "label": "Midwest", "next": "region-mw" },
+        { "label": "Back to home", "next": "home" }
+      ]
+    },
+    {
+      "id": "region-fl",
+      "message": "Florida Region",
+      "answer": "Office: Plantation, FL\n7520 NW 5th St., Plantation, FL 33317\n(954) 356-2728\n\nArea Managers:\n• David Nunez — david.nunez@ndsdata.com\n• Abdiel Mateo — abdiel.mateo@ndsdata.com\n\nBoundaries: Tampa, Orlando, Metro Miami, Jacksonville",
+      "buttons": [{ "label": "Back to regions", "next": "regions-home" }]
+    },
+    {
+      "id": "region-se",
+      "message": "Southeast Region",
+      "answer": "TN, GA, AL Office: Cartersville, GA\n4 S Tennessee Street, Suite 112, Cartersville, GA 30120\n(678) 679-3023\n\nNC, SC Office: Charlotte, NC\n1811 Sardis Rd N, Suite 205, Charlotte, NC 28270\n(704) 303-8119\n\nArea Managers:\n• Zac McDiarmid — zac.mcdiarmid@ndsdata.com\n• John Greist — john@ndsdata.com\n\nBoundaries: Alabama (Northern), Georgia, NC, SC, Tennessee",
+      "buttons": [{ "label": "Back to regions", "next": "regions-home" }]
+    },
+    {
+      "id": "region-socal",
+      "message": "SoCal Region",
+      "answer": "Office: Monterey Park, CA\n810 S Atlantic Blvd, Suite A, Monterey Park, CA 91754\n(323) 782-009\n\nArea Managers:\n• Lindsay Kottwitz — lindsay.kottwitz@ndsdata.com\n• Ruben Gallegos — ruben.gallegos@ndsdata.com\n\nBoundaries: Orange County, Los Angeles, Inland Empire, San Diego, Central Coast, Central Valley, Utah",
+      "buttons": [{ "label": "Back to regions", "next": "regions-home" }]
+    },
+    {
+      "id": "region-nocal",
+      "message": "NorCal Region",
+      "answer": "Office: Sacramento, CA\n4740 Northgate Blvd, Ste 110, Sacramento, CA 95834\n(916) 771-8700\n\nArea Managers:\n• Steve Sandbank — steve.sandbank@ndsdata.com\n• Charlene Demello — charlene.demello@ndsdata.com\n\nBoundaries: Sacramento, Bay Area, Central Valley, Far North, Nevada/Northern Sierra",
+      "buttons": [{ "label": "Back to regions", "next": "regions-home" }]
+    },
+    {
+      "id": "region-sc-tx",
+      "message": "Southcentral — Texas",
+      "answer": "Office: Houston, TX\n1400 Broadfield Blvd, Suite 200, Houston, TX 77084\n(713) 903-3966\n\nArea Managers:\n• Richard Rafeedie — richard@ndsdata.com\n• Raymond Buchberg — Raymond.buchberg@ndsdata.com\n\nBoundaries: Houston, Austin, Dallas, San Antonio",
+      "buttons": [{ "label": "Back to regions", "next": "regions-home" }]
+    },
+    {
+      "id": "region-sc-la",
+      "message": "Southcentral — Louisiana",
+      "answer": "Office: Baton Rouge, LA\n5534 Galleria Dr Ste E106, Baton Rouge, LA 70816\n(504) 513-4555\n\nBoundaries: New Orleans, Baton Rouge, Lafayette, Shreveport, Alabama (Southern), Mississippi",
+      "buttons": [{ "label": "Back to regions", "next": "regions-home" }]
+    },
+    {
+      "id": "region-ne",
+      "message": "Northeast Region",
+      "answer": "Office: Maspeth, NY\n55-72 61st St, Maspeth, NY 11378\n(718) 682-3899\n\nArea Managers:\n• Rachel Lupino — rachel.lupino@ndsdata.com\n• Jonathan Brubaker — jonathan@ndsdata.com\n\nBoundaries: CT, MA, ME, NH, NJ, NY, PA (Eastern/Central/Western), RI, VT, DE",
+      "buttons": [{ "label": "Back to regions", "next": "regions-home" }]
+    },
+    {
+      "id": "region-ma",
+      "message": "Mid-Atlantic Region",
+      "answer": "Office: Fairfax, VA\n3918 Prosperity Ave Suite 104, Fairfax, VA 22031\n(703) 349-4821\n\nArea Managers:\n• Rachel Lupino — rachel.lupino@ndsdata.com\n• Jonathan Brubaker — jonathan@ndsdata.com\n\nBoundaries: VA, MD, DC, WV, DE, PA, MI, OH",
+      "buttons": [{ "label": "Back to regions", "next": "regions-home" }]
+    },
+    {
+      "id": "region-mw",
+      "message": "Midwest Region",
+      "answer": "Office: Chicago, IL\n1275 W Roosevelt Rd, Suite 114, West Chicago, IL 60185\n(312) 970-8277\n\nArea Manager:\n• Brian Russell — brian.russell@ndsdata.com",
+      "buttons": [{ "label": "Back to regions", "next": "regions-home" }]
+    }
+  ]
+}
