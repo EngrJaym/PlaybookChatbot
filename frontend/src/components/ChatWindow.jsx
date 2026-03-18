@@ -1,6 +1,8 @@
 import MessageList from "./MessageList";
 import OptionButtons from "./OptionButtons";
 import "./ChatWindow.css";
+import IconClipboard from "./icons/IconClipboard";
+import IconRefresh from "./icons/IconRefresh";
 
 export default function ChatWindow({
   messages,
@@ -10,34 +12,42 @@ export default function ChatWindow({
   meta,
   onStart,
   onSelect,
+  onDragHandlePointerDown,
+  containerStyle,
+  isDragging,
 }) {
   const title = meta?.title || "NDS Client Management Playbook";
   const company = meta?.company || "National Data & Surveying Services";
   const version = meta?.version || "";
 
   return (
-    <div className="chat-window">
-      {/* Header */}
-      <div className="chat-window__header">
+    <div
+      className={`chat-window ${isDragging ? "chat-window--dragging" : ""}`}
+      style={containerStyle}
+    >
+      <div className="chat-window__header" onPointerDown={onDragHandlePointerDown}>
         <div className="chat-window__header-left">
-          <span className="chat-window__logo">NDS</span>
+          <span className="chat-window__logo" aria-hidden="true">
+            NDS
+          </span>
           <div className="chat-window__header-text">
             <span className="chat-window__title">CM Playbook</span>
+            <span className="chat-window__subtitle">{company}</span>
             {version && <span className="chat-window__version">v{version}</span>}
           </div>
         </div>
         {started && (
           <button className="chat-window__restart" onClick={onStart}>
-            ↻ Start Over
+            <IconRefresh className="chat-window__restart-icon" />
+            <span>Start Over</span>
           </button>
         )}
       </div>
 
-      {/* Body */}
       <div className="chat-window__body">
         {!started ? (
           <div className="chat-window__welcome">
-            <div className="chat-window__welcome-icon">📋</div>
+            <IconClipboard className="chat-window__welcome-icon" />
             <h3>{title}</h3>
             <p className="chat-window__company">{company}</p>
             <p className="chat-window__desc">

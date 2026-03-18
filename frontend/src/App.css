@@ -1,1 +1,7 @@
-/* App-level styles — kept minimal; component styles live in their own CSS files */
+.chat-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.22);
+  backdrop-filter: blur(1px);
+  z-index: 998;
+}
