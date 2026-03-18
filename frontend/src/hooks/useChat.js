@@ -55,10 +55,10 @@ export default function useChat() {
         {
           role: "bot",
           title: "Connection Error",
-          text: "⚠️ Could not reach the server. Make sure the backend is running on port 8001.",
+          text: "WARNING: Could not reach the server. Make sure the backend is running on port 8001.",
         },
       ]);
-      setButtons([{ label: "🔄 Try Again", next: "home" }]);
+      setButtons([{ label: "Try Again", next: "home" }]);
     } finally {
       setLoading(false);
     }
