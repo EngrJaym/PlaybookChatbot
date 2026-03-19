@@ -1,0 +1,23 @@
+{
+  "teams": [
+    {
+      "team": "example_team",
+      "playbooks": ["cm.json"],
+      "members": [
+        "firstname.lastname@yourcompany.com",
+        "another.member@yourcompany.com"
+      ]
+    },
+    {
+      "team": "leads",
+      "playbooks": ["cm.json", "mapping.json", "pricing.json"],
+      "members": [
+        "lead.email@yourcompany.com"
+      ]
+    }
+  ],
+  "defaults": {
+    "allow_all_if_no_rule": false
+  }
+}
+

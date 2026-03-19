@@ -42,6 +42,7 @@ async def _startup():
     logger.info(f"  ENABLE_RELOAD        : {config.ENABLE_RELOAD}")
     logger.info(f"  ENABLE_DEBUG_ENDPOINTS: {config.ENABLE_DEBUG_ENDPOINTS}")
     logger.info(f"  ENABLE_META_ENDPOINT : {config.ENABLE_META_ENDPOINT}")
+    logger.info(f"  ENABLE_ACCESS_CONTROL: {config.ENABLE_ACCESS_CONTROL}")
     logger.info(f"  SA credentials       : {'✓ found' if config.SA_FILE.exists() else '✗ MISSING'}")
     logger.info("=" * 56)
 
@@ -62,5 +63,6 @@ async def health():
             "reload":           config.ENABLE_RELOAD,
             "debug_endpoints":  config.ENABLE_DEBUG_ENDPOINTS,
             "meta_endpoint":    config.ENABLE_META_ENDPOINT,
+            "access_control":   config.ENABLE_ACCESS_CONTROL,
         },
     }

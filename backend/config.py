@@ -68,12 +68,15 @@ ENABLE_CHAT:             bool = _bool("ENABLE_CHAT",             True)
 ENABLE_RELOAD:           bool = _bool("ENABLE_RELOAD",           True)
 ENABLE_DEBUG_ENDPOINTS:  bool = _bool("ENABLE_DEBUG_ENDPOINTS",  True)
 ENABLE_META_ENDPOINT:    bool = _bool("ENABLE_META_ENDPOINT",    True)
+ENABLE_ACCESS_CONTROL:   bool = _bool("ENABLE_ACCESS_CONTROL",   True)
 
 MAINTENANCE_MODE:        bool = _bool("MAINTENANCE_MODE",        False)
 MAINTENANCE_MESSAGE:     str  = _str(
     "MAINTENANCE_MESSAGE",
     "The playbook is currently under maintenance. Please try again shortly."
 )
+
+GOOGLE_OAUTH_CLIENT_ID: str = _str("GOOGLE_OAUTH_CLIENT_ID", "")
 
 _SA_REL   = _str("GOOGLE_SERVICE_ACCOUNT_FILE", "credentials/service_account.json")
 SA_FILE: Path = (Path(_SA_REL) if Path(_SA_REL).is_absolute() else _BACKEND_DIR / _SA_REL)
@@ -99,6 +102,7 @@ def as_dict() -> dict:
             "reload":          ENABLE_RELOAD,
             "debug_endpoints": ENABLE_DEBUG_ENDPOINTS,
             "meta_endpoint":   ENABLE_META_ENDPOINT,
+            "access_control":  ENABLE_ACCESS_CONTROL,
         },
         "google_docs": {
             "credentials_file":  str(SA_FILE),
