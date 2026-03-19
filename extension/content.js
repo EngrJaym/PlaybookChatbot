@@ -3,6 +3,38 @@
 
   const API_URL = "http://127.0.0.1:8001/api";
 
+  // ── Background proxy fetch (bypasses mixed-content blocking on https:// pages) ──
+  function apiFetch(path, options = {}) {
+    return new Promise((resolve, reject) => {
+      chrome.runtime.sendMessage(
+        {
+          action: "api_fetch",
+          url: `${API_URL}${path}`,
+          options: {
+            method: options.method || "GET",
+            headers: { "Content-Type": "application/json", ...(options.headers || {}) },
+            body: options.body || undefined,
+          },
+        },
+        (response) => {
+          if (chrome.runtime.lastError) {
+            reject(new Error(chrome.runtime.lastError.message));
+            return;
+          }
+          if (!response) {
+            reject(new Error("No response from background"));
+            return;
+          }
+          if (!response.ok) {
+            reject(new Error(response.error || "Network error"));
+            return;
+          }
+          resolve({ status: response.status, data: response.data });
+        }
+      );
+    });
+  }
+
   // ── State ────────────────────────────────────────────────────
   let isOpen = false;
   let started = false;
@@ -38,12 +70,11 @@
   // ── Fetch helpers ────────────────────────────────────────────
   async function fetchMeta() {
     try {
-      const res = await fetch(`${API_URL}/meta`);
-      meta = await res.json();
+      const { data } = await apiFetch("/meta");
+      meta = data;
     } catch {}
     try {
-      const res = await fetch(`${API_URL}/flags`);
-      const data = await res.json();
+      const { data } = await apiFetch("/flags");
       if (data?.maintenance_mode) maintenance = true;
     } catch {}
   }
@@ -57,33 +88,27 @@
     render();
 
     try {
-      const res = await fetch(`${API_URL}/chat`, {
+      const { status, data } = await apiFetch("/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ node_id: nodeId }),
       });
 
-      if (res.status === 503) {
-        const err = await res.json();
+      if (status === 503) {
         maintenance = true;
         messages.push({
           role: "bot",
           title: "\u{1F527} Under Maintenance",
-          text: err?.detail?.message || "The playbook is currently under maintenance.",
+          text: data?.detail?.message || "The playbook is currently under maintenance.",
         });
         buttons = [];
-      } else if (res.status === 404) {
-        const err = await res.json();
+      } else if (status === 404) {
         messages.push({
           role: "bot",
           title: "Feature Unavailable",
-          text: err?.detail || "This feature is currently disabled.",
+          text: data?.detail || "This feature is currently disabled.",
         });
         buttons = [{ label: "\u{1F3E0} Back to Home", next: "home" }];
-      } else if (!res.ok) {
-        throw new Error("Failed");
       } else {
-        const data = await res.json();
         maintenance = false;
         messages.push({
           role: "bot",

@@ -6,11 +6,16 @@ Values are read from PlaybookChatbot/.env at import time.
 
 DATA SOURCE MODE  (DATA_SOURCE)
 --------------------------------
-  "json"        →  Use data/cm.json only.  No Google Docs calls.
-  "google"      →  Use Google Docs only.  cm.json used for navigation
-                   backbone only (buttons/tree); Docs supply answer text.
-  "both"        →  Use Google Docs first; fall back to cm.json answers
-                   if a doc fetch fails or a node has no match in Docs.
+  "json"        →  Use JSON files only.  No Google Docs calls.
+  "google"      →  JSON defines nodes; Google Docs supply answers by meaning.
+                   If Docs fetch fails the JSON answer is kept as fallback.
+  "both"        →  (RECOMMENDED) Same as "google" but lenient on failures.
+                   Best quality: JSON structure + Docs real-time answers
+                   + JSON fallback for any unmatched nodes.
+
+CACHE
+-----
+  CACHE_TTL_SECONDS  int   — seconds before Docs answers are re-fetched (0=off)
 
 FEATURE FLAGS
 -------------
@@ -78,12 +83,15 @@ DATA_DIR_ENV: str = _str("DATA_DIR", "")
 APP_ENV:   str = _str("APP_ENV",   "development")
 LOG_LEVEL: str = _str("LOG_LEVEL", "INFO").upper()
 
+CACHE_TTL_SECONDS: int = int(os.getenv("CACHE_TTL_SECONDS", "300"))
+
 
 def as_dict() -> dict:
     """Return all feature flags as a serialisable dict for the /api/flags endpoint."""
     return {
         "app_env":             APP_ENV,
         "data_source":         DATA_SOURCE,
+        "cache_ttl_seconds":   CACHE_TTL_SECONDS,
         "maintenance_mode":    MAINTENANCE_MODE,
         "maintenance_message": MAINTENANCE_MESSAGE if MAINTENANCE_MODE else None,
         "features": {
