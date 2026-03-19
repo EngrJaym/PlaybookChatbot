@@ -6,17 +6,17 @@
 
 :host {
   --nds-bg: #eef3fb;
-  --nds-surface: #ffffff;
+  --nds-surface: #fbfcff;
   --nds-text: #0f172a;
   --nds-muted: #64748b;
-  --nds-brand: #1f4ea8;
-  --nds-brand-strong: #173b80;
-  --nds-brand-soft: #eaf1ff;
-  --nds-line: #d8e2f2;
+  --nds-brand: #245dbf;
+  --nds-brand-strong: #1b449e;
+  --nds-brand-soft: #edf3ff;
+  --nds-line: #e2ebfb;
   --nds-shadow-lg: 0 20px 50px rgba(15, 23, 42, 0.2);
 
   font-family: "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  font-size: 14px;
+  font-size: 11px;
   line-height: 1.45;
   color: var(--nds-text);
   -webkit-font-smoothing: antialiased;
@@ -96,14 +96,14 @@
 
 .nds-chat-window {
   position: fixed;
-  bottom: 102px;
+  bottom: 92px;
   right: 24px;
-  width: min(440px, calc(100vw - 32px));
-  height: min(680px, calc(100vh - 130px));
+  width: min(330px, calc(100vw - 20px));
+  height: min(500px, calc(100vh - 120px));
   background: var(--nds-surface);
-  border-radius: 22px;
-  box-shadow: var(--nds-shadow-lg);
-  border: 1px solid rgba(216, 226, 242, 0.75);
+  border-radius: 14px;
+  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.12);
+  border: 1px solid rgba(226, 235, 251, 0.9);
   display: flex;
   flex-direction: column;
   z-index: 2147483646;
@@ -183,9 +183,9 @@
   background: rgba(255, 255, 255, 0.14);
   border: 1px solid rgba(255, 255, 255, 0.3);
   color: #fff;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
-  padding: 7px 11px;
+  padding: 6px 10px;
   border-radius: 10px;
   cursor: pointer;
   transition: background 0.2s, transform 0.2s;
@@ -229,15 +229,15 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 32px 24px;
+  padding: 26px 18px;
   text-align: center;
 }
 
 .nds-chat-window__welcome-icon {
-  width: 64px;
-  height: 64px;
-  margin-bottom: 14px;
-  border-radius: 16px;
+  width: 56px;
+  height: 56px;
+  margin-bottom: 12px;
+  border-radius: 15px;
   background: var(--nds-brand-soft);
   color: var(--nds-brand-strong);
   display: inline-flex;
@@ -247,13 +247,13 @@
 }
 
 .nds-chat-window__welcome-icon svg {
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
 }
 
 .nds-chat-window__welcome h3 {
-  margin: 0 0 6px;
-  font-size: 20px;
+  margin: 0 0 5px;
+  font-size: 16px;
   color: var(--nds-brand-strong);
   font-weight: 700;
   line-height: 1.2;
@@ -261,15 +261,15 @@
 
 .nds-chat-window__company {
   margin: 0 0 14px;
-  font-size: 12px;
+  font-size: 11px;
   color: var(--nds-muted);
   font-weight: 600;
   letter-spacing: 0.25px;
 }
 
 .nds-chat-window__desc {
-  margin: 0 0 26px;
-  font-size: 13.5px;
+  margin: 0 0 22px;
+  font-size: 11.5px;
   color: #475569;
   line-height: 1.5;
   max-width: 330px;
@@ -277,12 +277,12 @@
 
 .nds-chat-window__start-btn {
   min-width: 190px;
-  padding: 12px 24px;
+  padding: 10px 18px;
   border: none;
   border-radius: 12px;
   background: linear-gradient(135deg, var(--nds-brand), #2765cb);
   color: #fff;
-  font-size: 14px;
+  font-size: 12.5px;
   font-weight: 700;
   letter-spacing: 0.2px;
   cursor: pointer;
@@ -302,13 +302,13 @@
 .nds-message-list {
   flex: 1;
   overflow-y: auto;
-  padding: 16px;
+  padding: 10px;
   display: flex;
   flex-direction: column;
-  gap: 11px;
+  gap: 7px;
   background:
-    radial-gradient(circle at 90% 5%, rgba(31, 78, 168, 0.05), transparent 40%),
-    linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+    radial-gradient(circle at 90% 5%, rgba(36, 93, 191, 0.09), transparent 40%),
+    linear-gradient(180deg, #ffffff 0%, #f6faff 100%);
 }
 
 .nds-message {
@@ -320,52 +320,52 @@
 .nds-message--user { align-self: flex-end; }
 
 .nds-message__bubble {
-  padding: 11px 14px;
+  padding: 7px 10px;
   border-radius: 16px;
-  font-size: 13.5px;
-  line-height: 1.65;
+  font-size: 11.5px;
+  line-height: 1.55;
   overflow-wrap: break-word;
 }
 
 .nds-message__bubble--bot {
-  background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
+  background: linear-gradient(180deg, #ffffff 0%, #f4f8ff 100%);
   color: #0f172a;
-  border: 1px solid rgba(229, 237, 248, 0.95);
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+  border: 1px solid rgba(226, 235, 251, 0.95);
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.04);
 }
 
 .nds-message__bubble--user {
-  background: linear-gradient(135deg, #1f4ea8 0%, #2b67cc 100%);
+  background: linear-gradient(135deg, #245dbf 0%, #2b6ad6 100%);
   color: #ffffff;
   border: 1px solid rgba(255, 255, 255, 0.18);
-  border-left: 4px solid #1f4ea8;
-  box-shadow: 0 10px 26px rgba(31, 78, 168, 0.18);
+  border-left: 4px solid #245dbf;
+  box-shadow: 0 12px 28px rgba(36, 93, 191, 0.18);
 }
 
 .nds-msg-title {
   font-weight: 700;
-  font-size: 12.5px;
-  color: #0f3d8c;
-  margin-bottom: 7px;
-  padding-bottom: 8px;
+  font-size: 10.5px;
+  color: #123a8f;
+  margin-bottom: 5px;
+  padding-bottom: 6px;
   border-bottom: 1px solid rgba(229, 237, 248, 0.9);
 }
 
 .nds-msg-answer {
-  font-size: 13.5px;
-  line-height: 1.7;
+  font-size: 11.5px;
+  line-height: 1.55;
 }
 
-.nds-msg-para { margin: 5px 0; }
+.nds-msg-para { margin: 4px 0; }
 
 .nds-msg-warning {
-  background: #fff6dd;
-  border-left: 4px solid #f59e0b;
-  padding: 9px 10px;
-  border-radius: 8px;
+  background: #fff7e6;
+  border-left: 3px solid #f59e0b;
+  padding: 7px 9px;
+  border-radius: 7px;
   margin: 8px 0;
-  font-size: 12px;
-  color: #92400e;
+  font-size: 10.5px;
+  color: #7a3e00;
   display: flex;
   gap: 10px;
   align-items: flex-start;
@@ -423,10 +423,10 @@ ol.nds-msg-list { padding-left: 24px; }
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  padding: 12px 14px 14px;
+  padding: 8px 10px 10px;
   border-top: 1px solid #e5edf8;
   background: linear-gradient(180deg, #fafdff 0%, #f3f8ff 100%);
-  border-radius: 0 0 22px 22px;
+  border-radius: 0 0 12px 12px;
   max-height: 220px;
   overflow-y: auto;
 }
@@ -436,12 +436,12 @@ ol.nds-msg-list { padding-left: 24px; }
 .nds-option-btn {
   flex: 1 1 calc(50% - 6px);
   min-width: 100px;
-  padding: 9px 10px;
-  border: 1px solid #d3e1f7;
-  border-radius: 12px;
-  background: #fff;
-  color: #1e3a63;
-  font-size: 12px;
+  padding: 7px 9px;
+  border: 1px solid rgba(209, 225, 247, 0.95);
+  border-radius: 11px;
+  background: #ffffff;
+  color: #16324f;
+  font-size: 10.5px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -454,16 +454,16 @@ ol.nds-msg-list { padding-left: 24px; }
 
 .nds-option-buttons--compact .nds-option-btn {
   flex: 1 1 calc(50% - 6px);
-  padding: 6px 8px;
-  font-size: 11.5px;
+  padding: 4px 7px;
+  font-size: 10.5px;
 }
 
 .nds-option-btn:hover:not(:disabled) {
-  border-color: #1f4ea8;
-  background: #edf4ff;
-  color: #173b80;
+  border-color: rgba(36, 93, 191, 0.9);
+  background: #eef5ff;
+  color: #123a8f;
   transform: translateY(-1px);
-  box-shadow: 0 8px 18px rgba(31, 78, 168, 0.16);
+  box-shadow: 0 10px 22px rgba(36, 93, 191, 0.14);
 }
 
 .nds-option-btn:active:not(:disabled) { transform: translateY(0); }
@@ -471,15 +471,15 @@ ol.nds-msg-list { padding-left: 24px; }
 
 .nds-option-btn--back {
   flex: 1 1 100%;
-  background: #f4f7fd;
-  border-color: #cedcf0;
-  color: #526482;
-  font-size: 11.5px;
+  background: #f5f8ff;
+  border-color: rgba(206, 220, 240, 0.95);
+  color: #4b5f78;
+  font-size: 10.5px;
 }
 
 .nds-option-btn--back:hover:not(:disabled) {
-  background: #edf3fc;
-  border-color: #b8cbeb;
+  background: #eef3ff;
+  border-color: rgba(184, 203, 235, 0.95);
   color: #3f5576;
   box-shadow: none;
   transform: none;
@@ -523,30 +523,32 @@ ol.nds-msg-list { padding-left: 24px; }
 
   .nds-chat-window {
     right: 8px;
-    bottom: 76px;
-    width: calc(100vw - 16px);
-    height: min(78vh, 700px);
-    border-radius: 18px;
+    bottom: 66px;
+    width: calc(100vw - 12px);
+    height: min(66vh, 540px);
+    border-radius: 12px;
   }
   .nds-chat-window__header { padding: 10px 10px 11px; }
   .nds-chat-window__restart { font-size: 11px; padding: 6px 8px; }
   .nds-chat-window__restart-icon svg { width: 14px; height: 14px; }
   .nds-chat-window__welcome { padding: 24px 18px; }
-  .nds-chat-window__welcome h3 { font-size: 18px; }
+  .nds-chat-window__welcome h3 { font-size: 16px; }
 
-  .nds-message-list { padding: 12px 10px 14px; }
+  .nds-message-list { padding: 10px 8px 12px; }
   .nds-message { max-width: 96%; }
   .nds-message__bubble { font-size: 12.5px; }
 
+  .nds-msg-title { font-size: 10.5px; }
+
   .nds-option-buttons {
-    padding: 10px 10px 12px;
-    border-radius: 0 0 18px 18px;
+    padding: 8px 8px 10px;
+    border-radius: 0 0 11px 11px;
     gap: 6px;
   }
   .nds-option-btn {
     flex-basis: 100%;
-    font-size: 12px;
-    padding: 9px 10px;
+    font-size: 10.5px;
+    padding: 8px 9px;
   }
 }
 
