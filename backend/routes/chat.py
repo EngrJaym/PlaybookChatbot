@@ -8,27 +8,11 @@ from logic.flow import (
     list_playbooks, get_active_playbook,
     _resolve_playbook, _load_playbook_file,
     _CITATIONS, _GDOCS_SENTINEL, _INDEX, _maybe_refresh,
+    get_playbook_titles,
 )
 from logic.access import validate, get_allowed_playbooks, reload_rules
 
 router = APIRouter(prefix="/api", tags=["chat"])
-
-
-def _verify_google_token(id_token: str) -> str:
-    from google.oauth2 import id_token as token_mod
-    from google.auth.transport import requests as g_requests
-    try:
-        info = token_mod.verify_oauth2_token(
-            id_token,
-            g_requests.Request(),
-            config.GOOGLE_OAUTH_CLIENT_ID or None,
-        )
-        email = info.get("email", "").strip().lower()
-        if not email or not info.get("email_verified", False):
-            raise ValueError("Email not verified")
-        return email
-    except Exception as exc:
-        raise HTTPException(status_code=401, detail=f"Invalid Google token: {exc}")
 
 
 def _maintenance_check():
@@ -45,11 +29,12 @@ def _flag_check(flag: bool, name: str):
 
 
 class LoginRequest(BaseModel):
-    id_token: str
+    email: str
 
 class ChatRequest(BaseModel):
     node_id: str = "home"
-    id_token: str | None = None
+    email: str | None = None
+    playbook: str | None = None
 
 class ButtonOut(BaseModel):
     label: str
@@ -73,16 +58,20 @@ class MetaResponse(BaseModel):
 @router.post("/login")
 async def login(req: LoginRequest):
     if not config.ENABLE_ACCESS_CONTROL:
-        email = _verify_google_token(req.id_token)
-        return {"email": email, "team": "all", "playbooks": []}
-    email = _verify_google_token(req.id_token)
-    result = validate(email)
+        return {"email": req.email.strip().lower(), "team": "all", "playbooks": [], "playbook_titles": {}}
+    result = validate(req.email)
     if not result["valid"]:
         raise HTTPException(
             status_code=403,
-            detail=f"'{email}' is not registered in any team. Contact your lead.",
+            detail=f"'{req.email}' is not registered in any team. Contact your lead.",
         )
-    return {"email": result["email"], "team": result["team"], "playbooks": result["playbooks"]}
+    titles = get_playbook_titles(result["playbooks"])
+    return {
+        "email": result["email"],
+        "team": result["team"],
+        "playbooks": result["playbooks"],
+        "playbook_titles": titles,
+    }
 
 
 @router.get("/meta", response_model=MetaResponse)
@@ -96,14 +85,13 @@ async def chat(req: ChatRequest):
     _flag_check(config.ENABLE_CHAT, "ENABLE_CHAT")
     _maintenance_check()
 
-    if config.ENABLE_ACCESS_CONTROL and req.id_token:
-        email = _verify_google_token(req.id_token)
-        result = validate(email)
+    if config.ENABLE_ACCESS_CONTROL and req.email:
+        result = validate(req.email)
         if not result["valid"]:
-            raise HTTPException(status_code=403, detail=f"Access denied for '{email}'.")
-        node = _get_node_filtered(req.node_id, result["playbooks"])
+            raise HTTPException(status_code=403, detail=f"Access denied for '{req.email}'.")
+        node = _get_node_filtered(req.node_id, result["playbooks"], req.playbook)
     else:
-        node = get_node(req.node_id)
+        node = _get_node_for_playbook(req.node_id, req.playbook) if req.playbook else get_node(req.node_id)
 
     if node is None:
         raise HTTPException(status_code=404, detail=f"Node '{req.node_id}' not found.")
@@ -118,8 +106,61 @@ async def chat(req: ChatRequest):
     )
 
 
-def _get_node_filtered(node_id: str, allowed: list[str]) -> dict | None:
+def _get_node_for_playbook(node_id: str, playbook_file: str) -> dict | None:
     _maybe_refresh()
+    from pathlib import Path
+    data_dir = Path(config.DATA_DIR_ENV) if config.DATA_DIR_ENV else Path(__file__).resolve().parent.parent.parent / "data"
+    path = data_dir / playbook_file
+    if not path.exists():
+        return get_node(node_id)
+    try:
+        book = _load_playbook_file(path)
+    except Exception:
+        return None
+    node = book["flow"].get(node_id)
+    if node is None:
+        return None
+    return {
+        "id":       node["id"],
+        "message":  node["message"],
+        "answer":   node.get("answer"),
+        "buttons":  node.get("buttons", []),
+        "type":     node.get("type"),
+        "citation": _CITATIONS.get(node_id),
+    }
+
+
+def _get_node_filtered(node_id: str, allowed: list[str], playbook_file: str | None = None) -> dict | None:
+    _maybe_refresh()
+
+    if playbook_file and playbook_file in (allowed or []):
+        from pathlib import Path
+        data_dir = Path(config.DATA_DIR_ENV) if config.DATA_DIR_ENV else Path(__file__).resolve().parent.parent.parent / "data"
+        path = data_dir / playbook_file
+        if path.exists():
+            try:
+                book = _load_playbook_file(path)
+            except Exception:
+                return None
+            node = book["flow"].get(node_id)
+            if node is None:
+                return None
+            if allowed:
+                filtered_buttons = [
+                    b for b in node.get("buttons", [])
+                    if _btn_allowed(b.get("next", ""), allowed)
+                ]
+            else:
+                filtered_buttons = node.get("buttons", [])
+            return {
+                "id":       node["id"],
+                "message":  node["message"],
+                "answer":   node.get("answer"),
+                "buttons":  filtered_buttons,
+                "type":     node.get("type"),
+                "citation": _CITATIONS.get(node_id),
+            }
+
     path = _resolve_playbook(node_id)
     if path is None:
         return None

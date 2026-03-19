@@ -25,25 +25,19 @@
     });
   }
 
-  function getStoredToken() {
+  function getGmailSilent() {
     return new Promise((resolve) => {
-      chrome.runtime.sendMessage({ action: "get_stored_token" }, (r) => {
-        resolve(r && r.id_token ? r.id_token : null);
+      chrome.runtime.sendMessage({ action: "get_gmail", interactive: false }, (r) => {
+        resolve(r && r.email ? r.email : null);
       });
     });
   }
 
-  function googleSignIn() {
+  function getGmailInteractive() {
     return new Promise((resolve) => {
-      chrome.runtime.sendMessage({ action: "google_sign_in" }, (r) => {
-        resolve(r && r.id_token ? r.id_token : null);
+      chrome.runtime.sendMessage({ action: "get_gmail", interactive: true }, (r) => {
+        resolve(r && r.email ? r.email : null);
       });
-    });
-  }
-
-  function signOut() {
-    return new Promise((resolve) => {
-      chrome.runtime.sendMessage({ action: "sign_out" }, () => resolve());
     });
   }
 
@@ -54,10 +48,12 @@
   let buttons     = [];
   let meta        = null;
   let maintenance = false;
-  let idToken     = null;
   let userEmail   = null;
   let accessState = "checking";
   let acEnabled   = true;
+  let userPlaybooks    = [];
+  let playbookTitles   = {};
+  let activePlaybook   = null;
 
   const ICON_ROBOT     = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v3"/><circle cx="12" cy="6" r="1.2" fill="none"/><path d="M9 5.6h6"/><path d="M8.4 6.4H7.3A3.3 3.3 0 0 0 4 9.7V15a5 5 0 0 0 5 5h6a5 5 0 0 0 5-5V9.7a3.3 3.3 0 0 0-3.3-3.3H15.6"/><path d="M9.2 13h.01"/><path d="M14.8 13h.01"/><path d="M9.3 16.1c.9.9 1.9 1.4 2.7 1.4s1.8-.5 2.7-1.4"/></svg>`;
   const ICON_X         = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>`;
@@ -65,7 +61,6 @@
   const ICON_REFRESH   = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 1-9 9 9 9 0 0 1-8.66-6.5"/><path d="M3 12a9 9 0 0 1 9-9 9 9 0 0 1 8.66 6.5"/><path d="M21 3v6h-6"/><path d="M3 21v-6h6"/></svg>`;
   const ICON_ALERT     = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/></svg>`;
   const ICON_LOCK      = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`;
-  const ICON_GOOGLE    = `<svg viewBox="0 0 24 24" width="18" height="18"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18A10.96 10.96 0 0 0 1 12c0 1.77.42 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>`;
 
   const root = document.createElement("div");
   root.id = "nds-playbook-root";
@@ -89,58 +84,67 @@
 
     if (!acEnabled) { accessState = "allowed"; render(); return; }
 
-    const stored = await getStoredToken();
-    if (stored) {
-      const ok = await verifyWithBackend(stored);
-      if (ok) { render(); return; }
-    }
-    accessState = "needs_signin";
-    render();
-  }
+    const email = await getGmailSilent();
+    userEmail = email;
 
-  async function verifyWithBackend(token) {
+    if (!email) { accessState = "needs_connect"; render(); return; }
+
     try {
       const { status, data } = await apiFetch("/login", {
         method: "POST",
-        body: JSON.stringify({ id_token: token }),
+        body: JSON.stringify({ email: email }),
       });
       if (status === 200) {
-        idToken = token;
-        userEmail = data.email;
         accessState = "allowed";
-        return true;
-      }
-      if (status === 403) {
-        userEmail = data?.detail?.match(/'([^']+)'/)?.[1] || "";
+        userPlaybooks = data.playbooks || [];
+        playbookTitles = data.playbook_titles || {};
+      } else {
         accessState = "not_registered";
-        return false;
       }
-      accessState = "needs_signin";
-      await signOut();
-      return false;
     } catch {
-      accessState = "needs_signin";
-      return false;
+      accessState = "not_registered";
     }
+
+    render();
   }
 
-  async function handleSignIn() {
+  async function handleConnect() {
     accessState = "checking";
     render();
-    const token = await googleSignIn();
-    if (!token) { accessState = "needs_signin"; render(); return; }
-    await verifyWithBackend(token);
+    const email = await getGmailInteractive();
+    userEmail = email;
+    if (!email) { accessState = "needs_connect"; render(); return; }
+    try {
+      const { status, data } = await apiFetch("/login", {
+        method: "POST",
+        body: JSON.stringify({ email: email }),
+      });
+      if (status === 200) {
+        accessState = "allowed";
+        userPlaybooks = data.playbooks || [];
+        playbookTitles = data.playbook_titles || {};
+      } else {
+        accessState = "not_registered";
+      }
+    } catch {
+      accessState = "not_registered";
+    }
+
     render();
   }
 
   async function handleSignOut() {
-    await signOut();
-    idToken = null;
+    await new Promise((resolve) => {
+      chrome.runtime.sendMessage({ action: "sign_out" }, () => resolve());
+    });
     userEmail = null;
-    accessState = "needs_signin";
+    accessState = "needs_connect";
     started = false;
     messages = [];
     buttons = [];
+    userPlaybooks = [];
+    playbookTitles = {};
+    activePlaybook = null;
     render();
   }
 
@@ -151,7 +155,8 @@
     render();
     try {
       const body = { node_id: nodeId };
-      if (acEnabled && idToken) body.id_token = idToken;
+      if (acEnabled && userEmail) body.email = userEmail;
+      if (activePlaybook) body.playbook = activePlaybook;
       const { status, data } = await apiFetch("/chat", {
         method: "POST",
         body: JSON.stringify(body),
@@ -160,11 +165,6 @@
         maintenance = true;
         messages.push({ role: "bot", title: "\u{1F527} Under Maintenance", text: data?.detail?.message || "The playbook is currently under maintenance." });
         buttons = [];
-      } else if (status === 401) {
-        await signOut();
-        idToken = null;
-        accessState = "needs_signin";
-        started = false;
       } else if (status === 403) {
         accessState = "not_registered";
         started = false;
@@ -234,7 +234,28 @@
   }
 
   function toggleChat() { isOpen = !isOpen; render(); }
-  function startChat() { messages = []; buttons = []; started = true; render(); fetchNode("home"); }
+
+  function startChat() {
+    messages = [];
+    buttons = [];
+    if (acEnabled && userPlaybooks.length > 1 && !activePlaybook) {
+      started = true;
+      render();
+      return;
+    }
+    started = true;
+    render();
+    fetchNode("home");
+  }
+
+  function pickPlaybook(filename) {
+    activePlaybook = filename;
+    messages = [];
+    buttons = [];
+    render();
+    fetchNode("home");
+  }
+
   function selectOption(label, next) { fetchNode(next, label); }
 
   function render() {
@@ -249,24 +270,28 @@
       html += `<div class="nds-chat-window">`;
 
       html += `<div class="nds-chat-window__header">
-        <div class="nds-chat-window__header-left">
-          <span class="nds-chat-window__logo">NDS</span>
-          <div class="nds-chat-window__header-text">
-            <span class="nds-chat-window__title">Playbook</span>
-            <span class="nds-chat-window__subtitle">${esc(company)}</span>
-            ${version ? `<span class="nds-chat-window__version">v${esc(version)}</span>` : ""}
+        <div class="nds-chat-window__header-top">
+          <div class="nds-chat-window__header-left">
+            <span class="nds-chat-window__logo">NDS</span>
+            <div class="nds-chat-window__header-text">
+              <span class="nds-chat-window__title">Playbook</span>
+              <span class="nds-chat-window__subtitle">${esc(company)}</span>
+            </div>
           </div>
+          ${version ? `<span class="nds-chat-window__version">v${esc(version)}</span>` : ""}
         </div>
-        <div style="display:flex;align-items:center;gap:6px;">
-          ${userEmail ? `<span style="font-size:0.7em;opacity:0.7;color:#fff;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(userEmail)}">${esc(userEmail)}</span>
-          <button class="nds-chat-window__restart" data-action="signout" title="Sign out" style="padding:4px 8px;">
-            <span style="font-size:0.75em;">Sign out</span>
-          </button>` : ""}
-          ${started ? `<button class="nds-chat-window__restart" data-action="restart">
-            <span class="nds-chat-window__restart-icon">${ICON_REFRESH}</span>
-            <span>Start Over</span>
-          </button>` : ""}
-        </div>
+        ${userEmail && accessState === "allowed" ? `<div class="nds-chat-window__header-bar">
+          <span class="nds-header-email" title="${esc(userEmail)}">${esc(userEmail)}</span>
+          <div class="nds-header-actions">
+            ${started && activePlaybook && acEnabled && userPlaybooks.length > 1
+              ? `<button class="nds-header-btn nds-header-btn--ghost" data-action="switch-playbook">\u21c4 Switch</button>`
+              : ""}
+            ${started && activePlaybook
+              ? `<button class="nds-header-btn nds-header-btn--ghost" data-action="restart">${ICON_REFRESH} Start Over</button>`
+              : ""}
+            <button class="nds-header-btn nds-header-btn--signout" data-action="signout">Sign out</button>
+          </div>
+        </div>` : ""}
       </div>`;
 
       html += `<div class="nds-chat-window__body">`;
@@ -274,17 +299,15 @@
       if (accessState === "checking") {
         html += `<div class="nds-chat-window__welcome">
           <div class="nds-chat-window__welcome-icon">${ICON_CLIPBOARD}</div>
-          <p class="nds-chat-window__desc">Verifying access…</p>
+          <p class="nds-chat-window__desc">Verifying access\u2026</p>
         </div>`;
 
-      } else if (accessState === "needs_signin") {
+      } else if (accessState === "needs_connect") {
         html += `<div class="nds-chat-window__welcome">
           <div class="nds-chat-window__welcome-icon">${ICON_LOCK}</div>
           <h3>Sign in Required</h3>
-          <p class="nds-chat-window__desc">Sign in with your NDS Google account to access the playbook.</p>
-          <button class="nds-chat-window__start-btn" data-action="signin" style="display:flex;align-items:center;justify-content:center;gap:8px;">
-            ${ICON_GOOGLE} <span>Sign in with Google</span>
-          </button>
+          <p class="nds-chat-window__desc">Connect your NDS Google account to access the playbook.</p>
+          <button class="nds-chat-window__start-btn" data-action="connect">Connect Google Account</button>
         </div>`;
 
       } else if (accessState === "not_registered") {
@@ -293,17 +316,31 @@
           <h3>Access Not Granted</h3>
           <p class="nds-chat-window__desc"><strong>${esc(userEmail || "")}</strong> is not registered in any team.</p>
           <p class="nds-chat-window__desc" style="font-size:0.8em;opacity:0.6;">Contact your team lead to get access.</p>
-          <button class="nds-option-btn nds-option-btn--back" data-action="signout" style="margin-top:12px;">Try a different account</button>
         </div>`;
 
       } else if (!started) {
+        const hasMultiple = acEnabled && userPlaybooks.length > 1;
+        const welcomeTitle   = hasMultiple ? "NDS Playbook Chatbot" : (meta?.title   || "NDS Playbook Chatbot");
+        const welcomeCompany = hasMultiple ? (meta?.company || "National Data & Surveying Services") : (meta?.company || "National Data & Surveying Services");
         html += `<div class="nds-chat-window__welcome">
           <div class="nds-chat-window__welcome-icon">${ICON_CLIPBOARD}</div>
-          <h3>${esc(title)}</h3>
-          <p class="nds-chat-window__company">${esc(company)}</p>
-          <p class="nds-chat-window__desc">Your interactive guide to account setup, mapping, estimation, pricing, PSU, study types, QC checklists, and more.</p>
+          <h3>${esc(welcomeTitle)}</h3>
+          <p class="nds-chat-window__company">${esc(welcomeCompany)}</p>
+          <p class="nds-chat-window__desc">Your interactive guide to company processes, playbooks, and procedures.</p>
           <button class="nds-chat-window__start-btn" data-action="start">Open Playbook</button>
         </div>`;
+
+      } else if (acEnabled && userPlaybooks.length > 1 && !activePlaybook) {
+        html += `<div class="nds-chat-window__welcome">
+          <div class="nds-chat-window__welcome-icon">${ICON_CLIPBOARD}</div>
+          <h3>Select a Playbook</h3>
+          <p class="nds-chat-window__desc">You have access to multiple playbooks. Choose one to open.</p>
+          <div class="nds-option-buttons" style="margin-top:12px;">`;
+        for (const fname of userPlaybooks) {
+          const label = playbookTitles[fname] || fname.replace('.json','').replace(/_/g,' ').replace(/-/g,' ');
+          html += `<button class="nds-option-btn" data-action="pick-playbook" data-file="${esc(fname)}">${esc(label)}</button>`;
+        }
+        html += `</div></div>`;
 
       } else {
         html += `<div class="nds-message-list">`;
@@ -359,11 +396,16 @@
       return;
     }
     const action = btn.dataset.action;
-    if (action === "toggle")       toggleChat();
-    else if (action === "signin")  handleSignIn();
-    else if (action === "signout") handleSignOut();
-    else if (action === "start")   startChat();
-    else if (action === "restart") startChat();
+    if (action === "toggle")            toggleChat();
+    else if (action === "connect")      handleConnect();
+    else if (action === "signout")      handleSignOut();
+    else if (action === "start")        startChat();
+    else if (action === "restart")      { messages = []; buttons = []; render(); fetchNode("home"); }
+    else if (action === "switch-playbook") { activePlaybook = null; messages = []; buttons = []; render(); }
+    else if (action === "pick-playbook") {
+      const file = btn.dataset.file;
+      if (file) pickPlaybook(file);
+    }
     else if (action === "option") {
       const idx = parseInt(btn.dataset.index, 10);
       const b = buttons[idx];
@@ -377,4 +419,3 @@
 
   init();
 })();
-

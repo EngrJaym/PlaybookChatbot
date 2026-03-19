@@ -732,3 +732,20 @@ def get_active_playbook() -> str:
         cached.append("google_docs" if p == _GDOCS_SENTINEL else p.name)
     return ", ".join(cached) if cached else "none"
 
+
+def get_playbook_titles(filenames: list[str]) -> dict[str, str]:
+    titles = {}
+    for fname in filenames:
+        path = DATA_DIR / fname
+        if path.exists():
+            try:
+                with open(path, "r", encoding="utf-8") as fh:
+                    data = json.load(fh)
+                titles[fname] = data.get("meta", {}).get("title", path.stem)
+            except Exception:
+                titles[fname] = path.stem
+        else:
+            titles[fname] = fname.replace(".json", "").replace("_", " ").replace("-", " ").title()
+    return titles
+
+

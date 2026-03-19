@@ -76,8 +76,6 @@ MAINTENANCE_MESSAGE:     str  = _str(
     "The playbook is currently under maintenance. Please try again shortly."
 )
 
-GOOGLE_OAUTH_CLIENT_ID: str = _str("GOOGLE_OAUTH_CLIENT_ID", "")
-
 _SA_REL   = _str("GOOGLE_SERVICE_ACCOUNT_FILE", "credentials/service_account.json")
 SA_FILE: Path = (Path(_SA_REL) if Path(_SA_REL).is_absolute() else _BACKEND_DIR / _SA_REL)
 
@@ -112,4 +110,3 @@ def as_dict() -> dict:
 
 
 logging.getLogger().setLevel(getattr(logging, LOG_LEVEL, logging.INFO))
-
