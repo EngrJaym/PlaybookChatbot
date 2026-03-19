@@ -43,6 +43,8 @@
   let buttons = [];
   let meta = null;
   let maintenance = false;
+  let availablePlaybooks = [];
+  let activePlaybook = null;
 
   // ── SVG Icons ────────────────────────────────────────────────
   const ICON_ROBOT = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v3"/><circle cx="12" cy="6" r="1.2" fill="none"/><path d="M9 5.6h6"/><path d="M8.4 6.4H7.3A3.3 3.3 0 0 0 4 9.7V15a5 5 0 0 0 5 5h6a5 5 0 0 0 5-5V9.7a3.3 3.3 0 0 0-3.3-3.3H15.6"/><path d="M9.2 13h.01"/><path d="M14.8 13h.01"/><path d="M9.3 16.1c.9.9 1.9 1.4 2.7 1.4s1.8-.5 2.7-1.4"/></svg>`;
@@ -77,6 +79,10 @@
       const { data } = await apiFetch("/flags");
       if (data?.maintenance_mode) maintenance = true;
     } catch {}
+    try {
+      const { data } = await apiFetch("/playbooks");
+      availablePlaybooks = (data?.playbooks || []).filter(p => p.file && p.file !== "(google_docs)");
+    } catch {}
   }
 
   async function fetchNode(nodeId, userLabel) {
@@ -88,9 +94,11 @@
     render();
 
     try {
+      const body = { node_id: nodeId };
+      if (activePlaybook) body.playbook = activePlaybook;
       const { status, data } = await apiFetch("/chat", {
         method: "POST",
-        body: JSON.stringify({ node_id: nodeId }),
+        body: JSON.stringify(body),
       });
 
       if (status === 503) {
@@ -201,7 +209,23 @@
   function startChat() {
     messages = [];
     buttons = [];
+    if (availablePlaybooks.length > 1 && !activePlaybook) {
+      started = true;
+      render();
+      return;
+    }
+    if (availablePlaybooks.length === 1 && !activePlaybook) {
+      activePlaybook = availablePlaybooks[0].file;
+    }
     started = true;
+    render();
+    fetchNode("home");
+  }
+
+  function pickPlaybook(filename) {
+    activePlaybook = filename;
+    messages = [];
+    buttons = [];
     render();
     fetchNode("home");
   }
@@ -212,48 +236,63 @@
 
   // ── Render ───────────────────────────────────────────────────
   function render() {
-    const title = meta?.title || "NDS Client Management Playbook";
+    const hasMultiple = availablePlaybooks.length > 1;
+    const welcomeTitle = hasMultiple ? "NDS Playbook Chatbot" : (meta?.title || "NDS Playbook Chatbot");
     const company = meta?.company || "National Data & Surveying Services";
     const version = meta?.version || "";
 
     let html = "";
 
-    // Backdrop
     if (isOpen) {
       html += `<div class="nds-backdrop"></div>`;
     }
 
-    // Chat window
     if (isOpen) {
       html += `<div class="nds-chat-window">`;
 
-      // Header
       html += `<div class="nds-chat-window__header">
-        <div class="nds-chat-window__header-left">
-          <span class="nds-chat-window__logo">NDS</span>
-          <div class="nds-chat-window__header-text">
-            <span class="nds-chat-window__title">CM Playbook</span>
-            <span class="nds-chat-window__subtitle">${esc(company)}</span>
-            ${version ? `<span class="nds-chat-window__version">v${esc(version)}</span>` : ""}
+        <div class="nds-chat-window__header-top">
+          <div class="nds-chat-window__header-left">
+            <span class="nds-chat-window__logo">NDS</span>
+            <div class="nds-chat-window__header-text">
+              <span class="nds-chat-window__title">Playbook</span>
+              <span class="nds-chat-window__subtitle">${esc(company)}</span>
+            </div>
           </div>
+          ${version ? `<span class="nds-chat-window__version">v${esc(version)}</span>` : ""}
         </div>
-        ${started ? `<button class="nds-chat-window__restart" data-action="restart">
-          <span class="nds-chat-window__restart-icon">${ICON_REFRESH}</span>
-          <span>Start Over</span>
-        </button>` : ""}
+        ${started && activePlaybook ? `<div class="nds-chat-window__header-bar">
+          <span class="nds-header-email">${esc(activePlaybook.replace('.json','').replace(/_/g,' ').replace(/-/g,' ').toUpperCase())}</span>
+          <div class="nds-header-actions">
+            ${hasMultiple ? `<button class="nds-header-btn nds-header-btn--ghost" data-action="switch-playbook">\u21c4 Switch</button>` : ""}
+            <button class="nds-header-btn nds-header-btn--ghost" data-action="restart"><span style="display:inline-flex;align-items:center;">${ICON_REFRESH}</span> Start Over</button>
+          </div>
+        </div>` : ""}
       </div>`;
 
-      // Body
       html += `<div class="nds-chat-window__body">`;
 
       if (!started) {
         html += `<div class="nds-chat-window__welcome">
           <div class="nds-chat-window__welcome-icon">${ICON_CLIPBOARD}</div>
-          <h3>${esc(title)}</h3>
+          <h3>${esc(welcomeTitle)}</h3>
           <p class="nds-chat-window__company">${esc(company)}</p>
-          <p class="nds-chat-window__desc">Your interactive guide to account setup, mapping, estimation, pricing, PSU, study types, QC checklists, and more.</p>
+          <p class="nds-chat-window__desc">Your interactive guide to company processes, playbooks, and procedures.</p>
           <button class="nds-chat-window__start-btn" data-action="start">Open Playbook</button>
         </div>`;
+
+      } else if (hasMultiple && !activePlaybook) {
+        html += `<div class="nds-chat-window__welcome">
+          <div class="nds-chat-window__welcome-icon">${ICON_CLIPBOARD}</div>
+          <h3>Select a Playbook</h3>
+          <p class="nds-chat-window__desc">Choose a playbook to open.</p>
+          <div class="nds-option-buttons" style="margin-top:12px;">`;
+        for (const pb of availablePlaybooks) {
+          const label = pb.title || pb.file.replace('.json','').replace(/_/g,' ').replace(/-/g,' ');
+          html += `<button class="nds-option-btn" data-action="pick-playbook" data-file="${esc(pb.file)}">${esc(label)}</button>`;
+        }
+        html += `</div></div>`;
+
       } else {
         // Messages
         html += `<div class="nds-message-list">`;
@@ -317,7 +356,12 @@
     const action = btn.dataset.action;
     if (action === "toggle") toggleChat();
     else if (action === "start") startChat();
-    else if (action === "restart") startChat();
+    else if (action === "restart") { messages = []; buttons = []; render(); fetchNode("home"); }
+    else if (action === "switch-playbook") { activePlaybook = null; messages = []; buttons = []; render(); }
+    else if (action === "pick-playbook") {
+      const file = btn.dataset.file;
+      if (file) pickPlaybook(file);
+    }
     else if (action === "option") {
       const idx = parseInt(btn.dataset.index, 10);
       const b = buttons[idx];
