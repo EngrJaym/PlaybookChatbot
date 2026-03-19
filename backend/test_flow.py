@@ -8,7 +8,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 from logic.flow import (
     get_all_node_ids, get_meta, get_node, get_source,
-    _normalize, SA_FILE, DOC_ID_MAIN,
+    _normalize, SA_FILE, _collect_doc_entries,
 )
 
 SEP = "=" * 60
@@ -71,16 +71,19 @@ if without:
     print(f"  Nav-only nodes (expected): {without[:10]}{'...' if len(without) > 10 else ''}")
 
 # ── 7. OAuth / Google Docs status ────────────────────────────
+doc_entries = _collect_doc_entries()
 print(f"\n[GOOGLE DOCS / OAUTH 2.0 STATUS]")
 print(f"  Service account file : {SA_FILE}")
 print(f"  File exists          : {SA_FILE.exists()}")
-print(f"  GOOGLE_DOC_ID_MAIN   : {DOC_ID_MAIN or '(not set)'}")
+print(f"  Registered docs      : {len(doc_entries)}")
+for e in doc_entries:
+    print(f"    {e['name']}: {e['doc_id'][:20]}…")
 print(f"  Active source        : {get_source()}")
 
 if not SA_FILE.exists():
     print("\n  ⚠  Place your service_account.json at the path above.")
     print("     Then share the Google Doc with the service account email.")
-if not DOC_ID_MAIN:
+if not doc_entries:
     print("\n  ⚠  Set GOOGLE_DOC_ID_MAIN in .env to enable live content from Google Docs.")
 
 # ── 8. Normalise helper ───────────────────────────────────────
