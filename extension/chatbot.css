@@ -138,7 +138,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 6px 14px 10px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-top: 1px solid rgba(255,255,255,0.1);
   gap: 8px;
 }
 
@@ -177,7 +177,6 @@
 .nds-header-btn svg {
   width: 13px;
   height: 13px;
-  flex-shrink: 0;
 }
 
 .nds-header-btn--ghost {
@@ -594,3 +593,34 @@ ol.nds-msg-list { padding-left: 24px; }
   }
 }
 
+.nds-login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  margin-top: 8px;
+}
+
+.nds-login-input {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1.5px solid var(--nds-line);
+  border-radius: 10px;
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--nds-text);
+  background: var(--nds-surface);
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.nds-login-input:focus {
+  border-color: var(--nds-brand);
+}
+
+.nds-login-error {
+  font-size: 12px;
+  color: #dc2626;
+  text-align: center;
+  margin: 0;
+}

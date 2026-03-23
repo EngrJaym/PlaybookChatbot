@@ -13,6 +13,7 @@ services:
       DATA_DIR: /data
     volumes:
       - ./backend/credentials:/app/credentials:ro
+      - ./backend/access.json:/app/access.json:ro
       - ./data:/data:ro
     restart: unless-stopped
     healthcheck:

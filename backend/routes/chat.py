@@ -4,37 +4,39 @@ from pydantic import BaseModel
 import config
 from logic.flow import (
     get_node, get_meta, get_all_node_ids,
-    get_source, reload, _collect_doc_entries,
+    get_source, reload,
     list_playbooks, get_active_playbook,
+    _resolve_playbook, _load_playbook_file,
+    _CITATIONS, _INDEX,
+    get_playbook_titles,
 )
+from logic.access import resolve_groups, reload_rules
 
 router = APIRouter(prefix="/api", tags=["chat"])
 
 
 def _maintenance_check():
-    """Raise 503 if MAINTENANCE_MODE is on."""
     if config.MAINTENANCE_MODE:
         raise HTTPException(
             status_code=503,
-            detail={
-                "maintenance": True,
-                "message": config.MAINTENANCE_MESSAGE,
-            },
+            detail={"maintenance": True, "message": config.MAINTENANCE_MESSAGE},
         )
 
 
 def _flag_check(flag: bool, name: str):
-    """Raise 404 if a feature flag is disabled."""
     if not flag:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Endpoint disabled by feature flag '{name}'.",
-        )
+        raise HTTPException(status_code=404, detail=f"Endpoint disabled: '{name}'.")
 
 
+class ADLoginRequest(BaseModel):
+    username: str
+    groups: list[str] = []
 
 class ChatRequest(BaseModel):
-    node_id: str = "home"
+    node_id:  str = "home"
+    username: str | None = None
+    groups:   list[str] = []
+    playbook: str | None = None
 
 class ButtonOut(BaseModel):
     label: str
@@ -55,6 +57,24 @@ class MetaResponse(BaseModel):
     source: str
 
 
+@router.post("/ad-login")
+async def ad_login(req: ADLoginRequest):
+    if not config.ENABLE_ACCESS_CONTROL:
+        return {"username": req.username.strip().lower(), "team": "all", "playbooks": [], "playbook_titles": {}}
+    result = resolve_groups(req.username, req.groups)
+    if not result["valid"]:
+        raise HTTPException(
+            status_code=403,
+            detail=f"'{req.username}' is not in any authorised AD group. Contact your team lead.",
+        )
+    titles = get_playbook_titles(result["playbooks"])
+    return {
+        "username":        result["username"],
+        "team":            result["team"],
+        "playbooks":       result["playbooks"],
+        "playbook_titles": titles,
+    }
+
 
 @router.get("/meta", response_model=MetaResponse)
 async def meta():
@@ -66,9 +86,18 @@ async def meta():
 async def chat(req: ChatRequest):
     _flag_check(config.ENABLE_CHAT, "ENABLE_CHAT")
     _maintenance_check()
-    node = get_node(req.node_id)
+
+    if config.ENABLE_ACCESS_CONTROL and req.username:
+        result = resolve_groups(req.username, req.groups)
+        if not result["valid"]:
+            raise HTTPException(status_code=403, detail=f"Access denied for '{req.username}'.")
+        node = _get_node_filtered(req.node_id, result["playbooks"], req.playbook)
+    else:
+        node = _get_node_for_playbook(req.node_id, req.playbook) if req.playbook else get_node(req.node_id)
+
     if node is None:
         raise HTTPException(status_code=404, detail=f"Node '{req.node_id}' not found.")
+
     return ChatResponse(
         id=node["id"],
         message=node["message"],
@@ -79,15 +108,100 @@ async def chat(req: ChatRequest):
     )
 
 
+def _get_node_for_playbook(node_id: str, playbook_file: str) -> dict | None:
+    from pathlib import Path
+    data_dir = Path(config.DATA_DIR_ENV) if config.DATA_DIR_ENV else Path(__file__).resolve().parent.parent.parent / "data"
+    path = data_dir / playbook_file
+    if not path.exists():
+        return get_node(node_id)
+    try:
+        book = _load_playbook_file(path)
+    except Exception:
+        return None
+    node = book["flow"].get(node_id)
+    if node is None:
+        return None
+    return {
+        "id":       node["id"],
+        "message":  node["message"],
+        "answer":   node.get("answer"),
+        "buttons":  node.get("buttons", []),
+        "type":     node.get("type"),
+        "citation": _CITATIONS.get(node_id),
+    }
+
+
+def _get_node_filtered(node_id: str, allowed: list[str], playbook_file: str | None = None) -> dict | None:
+    from pathlib import Path
+    data_dir = Path(config.DATA_DIR_ENV) if config.DATA_DIR_ENV else Path(__file__).resolve().parent.parent.parent / "data"
+
+    targets = []
+    if playbook_file and playbook_file in (allowed or []):
+        targets = [playbook_file]
+    elif allowed:
+        targets = list(allowed)
+
+    for fname in targets:
+        path = data_dir / fname
+        if not path.exists():
+            continue
+        try:
+            book = _load_playbook_file(path)
+        except Exception:
+            continue
+        node = book["flow"].get(node_id)
+        if node is None:
+            continue
+        filtered_buttons = [b for b in node.get("buttons", []) if _btn_allowed(b.get("next", ""), allowed)] if allowed else node.get("buttons", [])
+        return {
+            "id":       node["id"],
+            "message":  node["message"],
+            "answer":   node.get("answer"),
+            "buttons":  filtered_buttons,
+            "type":     node.get("type"),
+            "citation": _CITATIONS.get(node_id),
+        }
+
+    path = _resolve_playbook(node_id)
+    if path is None:
+        return None
+    if allowed and path.name not in allowed:
+        return None
+    try:
+        book = _load_playbook_file(path)
+    except Exception:
+        return None
+    node = book["flow"].get(node_id)
+    if node is None:
+        return None
+    filtered_buttons = [b for b in node.get("buttons", []) if _btn_allowed(b.get("next", ""), allowed)] if allowed else node.get("buttons", [])
+    return {
+        "id":       node["id"],
+        "message":  node["message"],
+        "answer":   node.get("answer"),
+        "buttons":  filtered_buttons,
+        "type":     node.get("type"),
+        "citation": _CITATIONS.get(node_id),
+    }
+
+
+def _btn_allowed(next_id: str, allowed: list[str]) -> bool:
+    path = _INDEX.get(next_id)
+    if path is None:
+        return True
+    return path.name in allowed
+
+
 @router.post("/reload")
 async def reload_playbook():
     _flag_check(config.ENABLE_RELOAD, "ENABLE_RELOAD")
     try:
+        reload_rules()
         source = reload()
         return {
-            "status":     "ok",
-            "source":     source,
-            "node_count": len(get_all_node_ids()),
+            "status":           "ok",
+            "source":           source,
+            "node_count":       len(get_all_node_ids()),
             "data_source_mode": config.DATA_SOURCE,
         }
     except Exception as e:
@@ -96,44 +210,21 @@ async def reload_playbook():
 
 @router.get("/flags")
 async def flags():
-    """Return all active feature flags and config (debug)."""
     _flag_check(config.ENABLE_DEBUG_ENDPOINTS, "ENABLE_DEBUG_ENDPOINTS")
     return config.as_dict()
 
 
 @router.get("/nodes")
 async def nodes():
-    """Return all node IDs and registered Google Docs info (debug)."""
     _flag_check(config.ENABLE_DEBUG_ENDPOINTS, "ENABLE_DEBUG_ENDPOINTS")
-    entries = _collect_doc_entries()
-    docs_info = [
-        {
-            "name":   e["name"],
-            "doc_id": e["doc_id"][:20] + "…",
-            "scope":  "all nodes" if e["node_ids"] is None else sorted(e["node_ids"]),
-        }
-        for e in entries
-    ]
     return {
         "source":           get_source(),
-        "data_source_mode": config.DATA_SOURCE,
         "active_playbook":  get_active_playbook(),
         "node_count":       len(get_all_node_ids()),
         "node_ids":         get_all_node_ids(),
-        "google_docs": {
-            "credentials_file":  str(config.SA_FILE),
-            "credentials_found": config.SA_FILE.exists(),
-            "registered_docs":   docs_info,
-        },
     }
 
 
 @router.get("/playbooks")
 async def playbooks():
-    """List all available playbook JSON files in the data directory."""
-    return {
-        "active":    get_active_playbook(),
-        "playbooks": list_playbooks(),
-    }
-
-
+    return {"active": get_active_playbook(), "playbooks": list_playbooks()}

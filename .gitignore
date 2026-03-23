@@ -8,6 +8,8 @@ venv/
 
 backend/credentials/
 !backend/credentials/.gitkeep
+backend/access.json
+!backend/access.example.json
 backend/__pycache__/
 backend/**/__pycache__/
 backend/**/*.pyc
@@ -20,4 +22,5 @@ data/
 
 extension.pem
 extension.crx
-backend/access.json
+
+
