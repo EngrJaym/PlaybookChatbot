@@ -248,12 +248,11 @@
 }
 
 .nds-chat-window__version {
-  margin-top: 4px;
   font-size: 10px;
   color: #d7e5ff;
   font-weight: 500;
+  opacity: 0.85;
 }
-
 
 /* ── Body ─────────────────────────────────────────────────── */
 
@@ -572,9 +571,9 @@ ol.nds-msg-list { padding-left: 24px; }
     height: min(78vh, 700px);
     border-radius: 18px;
   }
-  .nds-chat-window__header { padding: 10px 10px 11px; }
-  .nds-chat-window__restart { font-size: 11px; padding: 6px 8px; }
-  .nds-chat-window__restart-icon svg { width: 14px; height: 14px; }
+  .nds-chat-window__header-top { padding: 10px 10px 8px; }
+  .nds-chat-window__header-bar { padding: 5px 10px 8px; }
+  .nds-header-btn { font-size: 10px; padding: 3px 8px; }
   .nds-chat-window__welcome { padding: 24px 18px; }
   .nds-chat-window__welcome h3 { font-size: 18px; }
 
