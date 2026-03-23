@@ -1,23 +1,37 @@
 {
   "teams": [
     {
-      "team": "example_team",
-      "playbooks": ["cm.json"],
-      "members": [
-        "firstname.lastname@yourcompany.com",
-        "another.member@yourcompany.com"
-      ]
+      "team": "developers",
+      "playbooks": ["cm.json","gis.json"],
+      "ad_groups": ["SG_TECH_SOFTENG_RW"]
     },
     {
-      "team": "leads",
-      "playbooks": ["cm.json", "mapping.json", "pricing.json"],
-      "members": [
-        "lead.email@yourcompany.com"
-      ]
+      "team": "scheduling",
+      "playbooks": ["sched.json"],
+      "ad_groups": ["SG_OPS_NDAT_SCHED"]
+    },
+    {
+      "team": "cm",
+      "playbooks": ["cm.json"],
+      "ad_groups": ["SG_OPS_NDAT_CM_RW"]
+    },
+    {
+      "team": "contracts",
+      "playbooks": ["gis.json","nyc.json","nys.json"],
+      "ad_groups": ["SG_OPS_DAT_CONTR"]
+    },
+    {
+      "team": "specials",
+      "playbooks": ["spec.json"],
+      "ad_groups": ["SG_OPS_DAT_SPEC"]
+    },
+    {
+      "team": "private",
+      "playbooks": ["priv.json"],
+      "ad_groups": ["SG_OPS_DAT_PRIV"]
     }
   ],
   "defaults": {
     "allow_all_if_no_rule": false
   }
 }
-

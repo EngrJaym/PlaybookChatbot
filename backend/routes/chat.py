@@ -4,13 +4,13 @@ from pydantic import BaseModel
 import config
 from logic.flow import (
     get_node, get_meta, get_all_node_ids,
-    get_source, reload, _collect_doc_entries,
+    get_source, reload,
     list_playbooks, get_active_playbook,
     _resolve_playbook, _load_playbook_file,
-    _CITATIONS, _GDOCS_SENTINEL, _INDEX, _maybe_refresh,
+    _CITATIONS, _INDEX,
     get_playbook_titles,
 )
-from logic.access import validate, get_allowed_playbooks, reload_rules
+from logic.access import resolve_groups, reload_rules
 
 router = APIRouter(prefix="/api", tags=["chat"])
 
@@ -28,12 +28,14 @@ def _flag_check(flag: bool, name: str):
         raise HTTPException(status_code=404, detail=f"Endpoint disabled: '{name}'.")
 
 
-class LoginRequest(BaseModel):
-    email: str
+class ADLoginRequest(BaseModel):
+    username: str
+    groups: list[str] = []
 
 class ChatRequest(BaseModel):
-    node_id: str = "home"
-    email: str | None = None
+    node_id:  str = "home"
+    username: str | None = None
+    groups:   list[str] = []
     playbook: str | None = None
 
 class ButtonOut(BaseModel):
@@ -55,21 +57,21 @@ class MetaResponse(BaseModel):
     source: str
 
 
-@router.post("/login")
-async def login(req: LoginRequest):
+@router.post("/ad-login")
+async def ad_login(req: ADLoginRequest):
     if not config.ENABLE_ACCESS_CONTROL:
-        return {"email": req.email.strip().lower(), "team": "all", "playbooks": [], "playbook_titles": {}}
-    result = validate(req.email)
+        return {"username": req.username.strip().lower(), "team": "all", "playbooks": [], "playbook_titles": {}}
+    result = resolve_groups(req.username, req.groups)
     if not result["valid"]:
         raise HTTPException(
             status_code=403,
-            detail=f"'{req.email}' is not registered in any team. Contact your lead.",
+            detail=f"'{req.username}' is not in any authorised AD group. Contact your team lead.",
         )
     titles = get_playbook_titles(result["playbooks"])
     return {
-        "email": result["email"],
-        "team": result["team"],
-        "playbooks": result["playbooks"],
+        "username":        result["username"],
+        "team":            result["team"],
+        "playbooks":       result["playbooks"],
         "playbook_titles": titles,
     }
 
@@ -85,10 +87,10 @@ async def chat(req: ChatRequest):
     _flag_check(config.ENABLE_CHAT, "ENABLE_CHAT")
     _maintenance_check()
 
-    if config.ENABLE_ACCESS_CONTROL and req.email:
-        result = validate(req.email)
+    if config.ENABLE_ACCESS_CONTROL and req.username:
+        result = resolve_groups(req.username, req.groups)
         if not result["valid"]:
-            raise HTTPException(status_code=403, detail=f"Access denied for '{req.email}'.")
+            raise HTTPException(status_code=403, detail=f"Access denied for '{req.username}'.")
         node = _get_node_filtered(req.node_id, result["playbooks"], req.playbook)
     else:
         node = _get_node_for_playbook(req.node_id, req.playbook) if req.playbook else get_node(req.node_id)
@@ -107,7 +109,6 @@ async def chat(req: ChatRequest):
 
 
 def _get_node_for_playbook(node_id: str, playbook_file: str) -> dict | None:
-    _maybe_refresh()
     from pathlib import Path
     data_dir = Path(config.DATA_DIR_ENV) if config.DATA_DIR_ENV else Path(__file__).resolve().parent.parent.parent / "data"
     path = data_dir / playbook_file
@@ -131,40 +132,40 @@ def _get_node_for_playbook(node_id: str, playbook_file: str) -> dict | None:
 
 
 def _get_node_filtered(node_id: str, allowed: list[str], playbook_file: str | None = None) -> dict | None:
-    _maybe_refresh()
+    from pathlib import Path
+    data_dir = Path(config.DATA_DIR_ENV) if config.DATA_DIR_ENV else Path(__file__).resolve().parent.parent.parent / "data"
 
+    targets = []
     if playbook_file and playbook_file in (allowed or []):
-        from pathlib import Path
-        data_dir = Path(config.DATA_DIR_ENV) if config.DATA_DIR_ENV else Path(__file__).resolve().parent.parent.parent / "data"
-        path = data_dir / playbook_file
-        if path.exists():
-            try:
-                book = _load_playbook_file(path)
-            except Exception:
-                return None
-            node = book["flow"].get(node_id)
-            if node is None:
-                return None
-            if allowed:
-                filtered_buttons = [
-                    b for b in node.get("buttons", [])
-                    if _btn_allowed(b.get("next", ""), allowed)
-                ]
-            else:
-                filtered_buttons = node.get("buttons", [])
-            return {
-                "id":       node["id"],
-                "message":  node["message"],
-                "answer":   node.get("answer"),
-                "buttons":  filtered_buttons,
-                "type":     node.get("type"),
-                "citation": _CITATIONS.get(node_id),
-            }
+        targets = [playbook_file]
+    elif allowed:
+        targets = list(allowed)
+
+    for fname in targets:
+        path = data_dir / fname
+        if not path.exists():
+            continue
+        try:
+            book = _load_playbook_file(path)
+        except Exception:
+            continue
+        node = book["flow"].get(node_id)
+        if node is None:
+            continue
+        filtered_buttons = [b for b in node.get("buttons", []) if _btn_allowed(b.get("next", ""), allowed)] if allowed else node.get("buttons", [])
+        return {
+            "id":       node["id"],
+            "message":  node["message"],
+            "answer":   node.get("answer"),
+            "buttons":  filtered_buttons,
+            "type":     node.get("type"),
+            "citation": _CITATIONS.get(node_id),
+        }
 
     path = _resolve_playbook(node_id)
     if path is None:
         return None
-    if allowed and path != _GDOCS_SENTINEL and path.name not in allowed:
+    if allowed and path.name not in allowed:
         return None
     try:
         book = _load_playbook_file(path)
@@ -173,13 +174,7 @@ def _get_node_filtered(node_id: str, allowed: list[str], playbook_file: str | No
     node = book["flow"].get(node_id)
     if node is None:
         return None
-    if allowed:
-        filtered_buttons = [
-            b for b in node.get("buttons", [])
-            if _btn_allowed(b.get("next", ""), allowed)
-        ]
-    else:
-        filtered_buttons = node.get("buttons", [])
+    filtered_buttons = [b for b in node.get("buttons", []) if _btn_allowed(b.get("next", ""), allowed)] if allowed else node.get("buttons", [])
     return {
         "id":       node["id"],
         "message":  node["message"],
@@ -192,7 +187,7 @@ def _get_node_filtered(node_id: str, allowed: list[str], playbook_file: str | No
 
 def _btn_allowed(next_id: str, allowed: list[str]) -> bool:
     path = _INDEX.get(next_id)
-    if path is None or path == _GDOCS_SENTINEL:
+    if path is None:
         return True
     return path.name in allowed
 
@@ -204,9 +199,9 @@ async def reload_playbook():
         reload_rules()
         source = reload()
         return {
-            "status": "ok",
-            "source": source,
-            "node_count": len(get_all_node_ids()),
+            "status":           "ok",
+            "source":           source,
+            "node_count":       len(get_all_node_ids()),
             "data_source_mode": config.DATA_SOURCE,
         }
     except Exception as e:
@@ -222,25 +217,11 @@ async def flags():
 @router.get("/nodes")
 async def nodes():
     _flag_check(config.ENABLE_DEBUG_ENDPOINTS, "ENABLE_DEBUG_ENDPOINTS")
-    entries = _collect_doc_entries()
     return {
         "source":           get_source(),
-        "data_source_mode": config.DATA_SOURCE,
         "active_playbook":  get_active_playbook(),
         "node_count":       len(get_all_node_ids()),
         "node_ids":         get_all_node_ids(),
-        "google_docs": {
-            "credentials_file":  str(config.SA_FILE),
-            "credentials_found": config.SA_FILE.exists(),
-            "registered_docs": [
-                {
-                    "name":   e["name"],
-                    "doc_id": e["doc_id"][:20] + "\u2026",
-                    "scope":  "all nodes" if e["node_ids"] is None else sorted(e["node_ids"]),
-                }
-                for e in entries
-            ],
-        },
     }
 
 

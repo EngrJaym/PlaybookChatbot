@@ -2,22 +2,18 @@
   "manifest_version": 3,
   "name": "NDS Playbook Chatbot",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAzWM+ArD6mgmtQoUuO6di8uVzC8OfY34wt5yBxdzcpa3BNcEsKyOz+97660g9wv36zBt9lAvO8sFlbXc/rCoN4XkqR0Wou2UMRT/CpeUbzTL6TFPKwisGYnS2Zt/4JJgD3Ggs/tK06qwVmwR3rtM06Ak2xS+tcdsa4+zcU1WGoN5NWwur8yK9TxcebJEWYrSKl0WLFOtms/AvaSr2CplvUGJdj2oRH5TqCZmyX6yxk2U/KkQMNW44UjMOF7OtWj3CliCJIaResK6h74V8Y7/GFpnP+JGs3/AxrvjSF/vCL5MKezJ9oNAKRrZE9AXE3hXRHMvXzlA5k9uGTC5aMalTIQIDAQAB",
-  "description": "NDS Client Management Playbook chatbot. Works on any webpage.",
-  "version": "1.1.0",
+  "description": "NDS Playbook Chatbot — works on any webpage in Chrome.",
+  "version": "1.2.0",
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
   },
-  "permissions": ["activeTab", "identity", "storage"],
+  "permissions": ["activeTab", "storage", "nativeMessaging"],
   "host_permissions": [
     "http://localhost:8001/*",
     "http://127.0.0.1:8001/*"
   ],
-  "oauth2": {
-    "client_id": "268855683186-j033gjjpgdmodkug7ibfaoqgtl5mdds7.apps.googleusercontent.com",
-    "scopes": ["openid", "email", "profile"]
-  },
   "action": {
     "default_icon": {
       "16": "icons/icon16.png",
@@ -43,3 +39,4 @@
     }
   ]
 }
+

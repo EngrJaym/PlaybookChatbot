@@ -25,35 +25,45 @@
     });
   }
 
-  function getGmailSilent() {
+  function getWindowsUsername() {
     return new Promise((resolve) => {
-      chrome.runtime.sendMessage({ action: "get_gmail", interactive: false }, (r) => {
-        resolve(r && r.email ? r.email : null);
+      chrome.runtime.sendMessage({ action: "get_windows_username" }, (r) => {
+        resolve(r || { username: null, groups: [], error: null });
       });
     });
   }
 
-  function getGmailInteractive() {
+  function getStoredAdUser() {
     return new Promise((resolve) => {
-      chrome.runtime.sendMessage({ action: "get_gmail", interactive: true }, (r) => {
-        resolve(r && r.email ? r.email : null);
+      chrome.runtime.sendMessage({ action: "get_ad_user" }, (r) => {
+        resolve(r || { username: null, groups: [], playbooks: [], playbook_titles: {} });
       });
     });
   }
 
-  let isOpen      = false;
-  let started     = false;
-  let loading     = false;
-  let messages    = [];
-  let buttons     = [];
-  let meta        = null;
-  let maintenance = false;
-  let userEmail   = null;
-  let accessState = "checking";
-  let acEnabled   = true;
-  let userPlaybooks    = [];
-  let playbookTitles   = {};
-  let activePlaybook   = null;
+  function saveAdUser(username, groups, team, playbooks, playbook_titles) {
+    return new Promise((resolve) => {
+      chrome.runtime.sendMessage(
+        { action: "save_ad_user", username, groups, team, playbooks, playbook_titles },
+        () => resolve()
+      );
+    });
+  }
+
+  let isOpen         = false;
+  let loading        = false;
+  let messages       = [];
+  let buttons        = [];
+  let meta           = null;
+  let adUsername     = null;
+  let adGroups       = [];
+  let accessState    = "checking";
+  let acEnabled      = true;
+  let userPlaybooks  = [];
+  let playbookTitles = {};
+  let activePlaybook = null;
+  let loginError     = "";
+  let loginInput     = "";
 
   const ICON_ROBOT     = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v3"/><circle cx="12" cy="6" r="1.2" fill="none"/><path d="M9 5.6h6"/><path d="M8.4 6.4H7.3A3.3 3.3 0 0 0 4 9.7V15a5 5 0 0 0 5 5h6a5 5 0 0 0 5-5V9.7a3.3 3.3 0 0 0-3.3-3.3H15.6"/><path d="M9.2 13h.01"/><path d="M14.8 13h.01"/><path d="M9.3 16.1c.9.9 1.9 1.4 2.7 1.4s1.8-.5 2.7-1.4"/></svg>`;
   const ICON_X         = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>`;
@@ -74,6 +84,14 @@
   container.className = "nds-chatbot";
   shadow.appendChild(container);
 
+  async function attemptAdLogin(username, groups) {
+    const { status, data } = await apiFetch("/ad-login", {
+      method: "POST",
+      body: JSON.stringify({ username: (username || "").trim().toLowerCase(), groups: groups || [] }),
+    });
+    return { status, data };
+  }
+
   async function init() {
     try { const { data } = await apiFetch("/meta"); meta = data; } catch {}
     try {
@@ -82,69 +100,116 @@
       if (data && data.features && data.features.access_control === false) acEnabled = false;
     } catch {}
 
-    if (!acEnabled) { accessState = "allowed"; render(); return; }
+    if (!acEnabled) { accessState = "allowed"; autoStart(); return; }
 
-    const email = await getGmailSilent();
-    userEmail = email;
+    accessState = "checking";
 
-    if (!email) { accessState = "needs_connect"; render(); return; }
+    const native      = await getWindowsUsername();
+    const winUsername = native.username;
+    const winGroups   = native.groups || [];
 
-    try {
-      const { status, data } = await apiFetch("/login", {
-        method: "POST",
-        body: JSON.stringify({ email: email }),
-      });
-      if (status === 200) {
-        accessState = "allowed";
-        userPlaybooks = data.playbooks || [];
-        playbookTitles = data.playbook_titles || {};
-      } else {
-        accessState = "not_registered";
+    if (winUsername) {
+      try {
+        const { status, data } = await attemptAdLogin(winUsername, winGroups);
+        if (status === 200) {
+          adUsername     = data.username;
+          adGroups       = winGroups;
+          userPlaybooks  = data.playbooks || [];
+          playbookTitles = data.playbook_titles || {};
+          await saveAdUser(adUsername, adGroups, data.team, userPlaybooks, playbookTitles);
+          accessState = "allowed";
+          autoStart();
+          return;
+        } else if (status === 403) {
+          adUsername  = winUsername;
+          adGroups    = winGroups;
+          accessState = "not_registered";
+        } else {
+          const stored = await getStoredAdUser();
+          if (stored.username) {
+            adUsername     = stored.username;
+            adGroups       = stored.groups || [];
+            userPlaybooks  = stored.playbooks || [];
+            playbookTitles = stored.playbook_titles || {};
+            accessState    = "allowed";
+            autoStart();
+            return;
+          }
+          accessState = "needs_login";
+        }
+      } catch {
+        const stored = await getStoredAdUser();
+        if (stored.username) {
+          adUsername     = stored.username;
+          adGroups       = stored.groups || [];
+          userPlaybooks  = stored.playbooks || [];
+          playbookTitles = stored.playbook_titles || {};
+          accessState    = "allowed";
+          autoStart();
+          return;
+        }
+        accessState = "needs_login";
       }
-    } catch {
-      accessState = "not_registered";
+    } else {
+      const stored = await getStoredAdUser();
+      if (stored.username) {
+        adUsername     = stored.username;
+        adGroups       = stored.groups || [];
+        userPlaybooks  = stored.playbooks || [];
+        playbookTitles = stored.playbook_titles || {};
+        accessState    = "allowed";
+        autoStart();
+        return;
+      }
+      accessState = "needs_login";
     }
 
     render();
   }
 
-  async function handleConnect() {
+  function autoStart() {
+    messages = [];
+    buttons  = [];
+    if (acEnabled && userPlaybooks.length > 1 && !activePlaybook) {
+      render();
+      return;
+    }
+    if (acEnabled && userPlaybooks.length === 1) activePlaybook = userPlaybooks[0];
+    render();
+    fetchNode("home");
+  }
+
+  async function handleManualLogin(username) {
+    if (!username || !username.trim()) return;
+    loginError  = "";
     accessState = "checking";
     render();
-    const email = await getGmailInteractive();
-    userEmail = email;
-    if (!email) { accessState = "needs_connect"; render(); return; }
     try {
-      const { status, data } = await apiFetch("/login", {
-        method: "POST",
-        body: JSON.stringify({ email: email }),
-      });
+      const native = await getWindowsUsername();
+      const groups = (native.username && native.username === username.trim().toLowerCase())
+        ? (native.groups || []) : [];
+      const { status, data } = await attemptAdLogin(username, groups);
       if (status === 200) {
-        accessState = "allowed";
-        userPlaybooks = data.playbooks || [];
+        adUsername     = data.username;
+        adGroups       = groups;
+        userPlaybooks  = data.playbooks || [];
         playbookTitles = data.playbook_titles || {};
-      } else {
+        await saveAdUser(adUsername, adGroups, data.team, userPlaybooks, playbookTitles);
+        accessState = "allowed";
+        loginError  = "";
+        autoStart();
+        return;
+      } else if (status === 403) {
+        adUsername  = username.trim().toLowerCase();
         accessState = "not_registered";
+      } else {
+        accessState = "needs_login";
+        loginError  = "Verification failed. Please try again.";
       }
     } catch {
-      accessState = "not_registered";
+      accessState = "needs_login";
+      loginError  = "Could not reach the server. Make sure the backend is running on port 8001.";
     }
-
-    render();
-  }
-
-  async function handleSignOut() {
-    await new Promise((resolve) => {
-      chrome.runtime.sendMessage({ action: "sign_out" }, () => resolve());
-    });
-    userEmail = null;
-    accessState = "needs_connect";
-    started = false;
-    messages = [];
-    buttons = [];
-    userPlaybooks = [];
-    playbookTitles = {};
-    activePlaybook = null;
     render();
   }
 
@@ -155,24 +220,21 @@
     render();
     try {
       const body = { node_id: nodeId };
-      if (acEnabled && userEmail) body.email = userEmail;
+      if (acEnabled && adUsername) {
+        body.username = adUsername;
+        body.groups   = adGroups || [];
+      }
       if (activePlaybook) body.playbook = activePlaybook;
-      const { status, data } = await apiFetch("/chat", {
-        method: "POST",
-        body: JSON.stringify(body),
-      });
+      const { status, data } = await apiFetch("/chat", { method: "POST", body: JSON.stringify(body) });
       if (status === 503) {
-        maintenance = true;
-        messages.push({ role: "bot", title: "\u{1F527} Under Maintenance", text: data?.detail?.message || "The playbook is currently under maintenance." });
+        messages.push({ role: "bot", title: "\uD83D\uDD27 Under Maintenance", text: data?.detail?.message || "The playbook is currently under maintenance." });
         buttons = [];
       } else if (status === 403) {
         accessState = "not_registered";
-        started = false;
       } else if (status === 404) {
         messages.push({ role: "bot", title: "Feature Unavailable", text: data?.detail || "This feature is currently disabled." });
-        buttons = [{ label: "\u{1F3E0} Back to Home", next: "home" }];
+        buttons = [{ label: "\uD83C\uDFE0 Back to Home", next: "home" }];
       } else {
-        maintenance = false;
         messages.push({ role: "bot", title: data.message, text: data.answer || null, citation: data.citation || null });
         buttons = data.buttons || [];
       }
@@ -233,25 +295,40 @@
     });
   }
 
-  function toggleChat() { isOpen = !isOpen; render(); }
+  function toggleChat() {
+    isOpen = !isOpen;
+    if (isOpen && accessState === "allowed" && messages.length === 0) {
+      if (acEnabled && userPlaybooks.length > 1 && !activePlaybook) {
+        render();
+        return;
+      }
+      if (acEnabled && userPlaybooks.length === 1 && !activePlaybook) activePlaybook = userPlaybooks[0];
+      if (activePlaybook || !acEnabled) {
+        render();
+        fetchNode("home");
+        return;
+      }
+    }
+    render();
+  }
 
-  function startChat() {
+  function autoStart() {
     messages = [];
-    buttons = [];
-    if (acEnabled && userPlaybooks.length > 1 && !activePlaybook) {
-      started = true;
+    buttons  = [];
+    activePlaybook = null;
+    if (acEnabled && userPlaybooks.length > 1) {
       render();
       return;
     }
-    started = true;
+    if (acEnabled && userPlaybooks.length === 1) activePlaybook = userPlaybooks[0];
+    if (isOpen) fetchNode("home");
     render();
-    fetchNode("home");
   }
 
   function pickPlaybook(filename) {
     activePlaybook = filename;
     messages = [];
-    buttons = [];
+    buttons  = [];
     render();
     fetchNode("home");
   }
@@ -259,7 +336,6 @@
   function selectOption(label, next) { fetchNode(next, label); }
 
   function render() {
-    const title   = meta?.title   || "NDS Playbook Chatbot";
     const company = meta?.company || "National Data & Surveying Services";
     const version = meta?.version || "";
     let html = "";
@@ -280,16 +356,15 @@
           </div>
           ${version ? `<span class="nds-chat-window__version">v${esc(version)}</span>` : ""}
         </div>
-        ${userEmail && accessState === "allowed" ? `<div class="nds-chat-window__header-bar">
-          <span class="nds-header-email" title="${esc(userEmail)}">${esc(userEmail)}</span>
+        ${adUsername && accessState === "allowed" ? `<div class="nds-chat-window__header-bar">
+          <span class="nds-header-email" title="${esc(adUsername)}">${esc(adUsername)}</span>
           <div class="nds-header-actions">
-            ${started && activePlaybook && acEnabled && userPlaybooks.length > 1
+            ${activePlaybook && acEnabled && userPlaybooks.length > 1
               ? `<button class="nds-header-btn nds-header-btn--ghost" data-action="switch-playbook">\u21c4 Switch</button>`
               : ""}
-            ${started && activePlaybook
+            ${activePlaybook
               ? `<button class="nds-header-btn nds-header-btn--ghost" data-action="restart">${ICON_REFRESH} Start Over</button>`
               : ""}
-            <button class="nds-header-btn nds-header-btn--signout" data-action="signout">Sign out</button>
           </div>
         </div>` : ""}
       </div>`;
@@ -299,35 +374,30 @@
       if (accessState === "checking") {
         html += `<div class="nds-chat-window__welcome">
           <div class="nds-chat-window__welcome-icon">${ICON_CLIPBOARD}</div>
-          <p class="nds-chat-window__desc">Verifying access\u2026</p>
+          <p class="nds-chat-window__desc">Verifying your access\u2026</p>
         </div>`;
 
-      } else if (accessState === "needs_connect") {
+      } else if (accessState === "needs_login") {
+        const prefill = loginInput || (adUsername ? esc(adUsername) : "");
         html += `<div class="nds-chat-window__welcome">
           <div class="nds-chat-window__welcome-icon">${ICON_LOCK}</div>
-          <h3>Sign in Required</h3>
-          <p class="nds-chat-window__desc">Connect your NDS Google account to access the playbook.</p>
-          <button class="nds-chat-window__start-btn" data-action="connect">Connect Google Account</button>
+          <h3>Verification Required</h3>
+          <p class="nds-chat-window__desc">Enter your Windows login username to verify access.</p>
+          <div class="nds-login-form">
+            <input class="nds-login-input" data-input="username" type="text"
+              placeholder="e.g. nds-25217" value="${prefill}"
+              autocomplete="username" spellcheck="false" />
+            ${loginError ? `<p class="nds-login-error">${esc(loginError)}</p>` : ""}
+            <button class="nds-chat-window__start-btn" data-action="submit-login">Verify &amp; Continue</button>
+          </div>
         </div>`;
 
       } else if (accessState === "not_registered") {
         html += `<div class="nds-chat-window__welcome">
           <div class="nds-chat-window__welcome-icon">${ICON_LOCK}</div>
           <h3>Access Not Granted</h3>
-          <p class="nds-chat-window__desc"><strong>${esc(userEmail || "")}</strong> is not registered in any team.</p>
+          <p class="nds-chat-window__desc"><strong>${esc(adUsername || "Your account")}</strong> is not in any authorised group.</p>
           <p class="nds-chat-window__desc" style="font-size:0.8em;opacity:0.6;">Contact your team lead to get access.</p>
-        </div>`;
-
-      } else if (!started) {
-        const hasMultiple = acEnabled && userPlaybooks.length > 1;
-        const welcomeTitle   = hasMultiple ? "NDS Playbook Chatbot" : (meta?.title   || "NDS Playbook Chatbot");
-        const welcomeCompany = hasMultiple ? (meta?.company || "National Data & Surveying Services") : (meta?.company || "National Data & Surveying Services");
-        html += `<div class="nds-chat-window__welcome">
-          <div class="nds-chat-window__welcome-icon">${ICON_CLIPBOARD}</div>
-          <h3>${esc(welcomeTitle)}</h3>
-          <p class="nds-chat-window__company">${esc(welcomeCompany)}</p>
-          <p class="nds-chat-window__desc">Your interactive guide to company processes, playbooks, and procedures.</p>
-          <button class="nds-chat-window__start-btn" data-action="start">Open Playbook</button>
         </div>`;
 
       } else if (acEnabled && userPlaybooks.length > 1 && !activePlaybook) {
@@ -337,7 +407,7 @@
           <p class="nds-chat-window__desc">You have access to multiple playbooks. Choose one to open.</p>
           <div class="nds-option-buttons" style="margin-top:12px;">`;
         for (const fname of userPlaybooks) {
-          const label = playbookTitles[fname] || fname.replace('.json','').replace(/_/g,' ').replace(/-/g,' ');
+          const label = playbookTitles[fname] || fname.replace(".json", "").replace(/_/g, " ").replace(/-/g, " ");
           html += `<button class="nds-option-btn" data-action="pick-playbook" data-file="${esc(fname)}">${esc(label)}</button>`;
         }
         html += `</div></div>`;
@@ -348,7 +418,7 @@
           if (msg.role === "bot") {
             html += `<div class="nds-message nds-message--bot"><div class="nds-message__bubble nds-message__bubble--bot">`;
             if (msg.title) html += `<div class="nds-msg-title">${esc(msg.title)}</div>`;
-            if (msg.text) html += `<div class="nds-msg-answer">${formatText(msg.text)}</div>`;
+            if (msg.text)  html += `<div class="nds-msg-answer">${formatText(msg.text)}</div>`;
             html += `</div></div>`;
           } else {
             html += `<div class="nds-message nds-message--user"><div class="nds-message__bubble nds-message__bubble--user">${esc(msg.text)}</div></div>`;
@@ -361,7 +431,7 @@
           const isCompact = buttons.length > 6;
           html += `<div class="nds-option-buttons ${isCompact ? "nds-option-buttons--compact" : ""}">`;
           for (let i = 0; i < buttons.length; i++) {
-            const btn = buttons[i];
+            const btn    = buttons[i];
             const isBack = btn.label.toLowerCase().includes("back") || btn.label.toLowerCase().includes("home");
             html += `<button class="nds-option-btn ${isBack ? "nds-option-btn--back" : ""}" ${loading ? "disabled" : ""} data-action="option" data-index="${i}">${esc(btn.label)}</button>`;
           }
@@ -375,11 +445,22 @@
     html += `<button class="nds-chat-fab ${isOpen ? "nds-chat-fab--open" : ""}" data-action="toggle" aria-label="${isOpen ? "Close chat" : "Open chat"}">
       ${isOpen
         ? `<span class="nds-chat-fab__icon nds-chat-fab__icon--close">${ICON_X}</span>`
-        : `<span class="nds-chat-fab__icon nds-chat-fab__icon--robot">${ICON_ROBOT}</span>`
-      }
+        : `<span class="nds-chat-fab__icon nds-chat-fab__icon--robot">${ICON_ROBOT}</span>`}
     </button>`;
 
     container.innerHTML = html;
+
+    if (accessState === "needs_login") {
+      const inputEl = shadow.querySelector("[data-input='username']");
+      if (inputEl) {
+        inputEl.focus();
+        inputEl.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") { loginInput = inputEl.value; handleManualLogin(inputEl.value); }
+        });
+        inputEl.addEventListener("input", (e) => { loginInput = e.target.value; });
+      }
+    }
+
     scrollToBottom();
   }
 
@@ -396,20 +477,20 @@
       return;
     }
     const action = btn.dataset.action;
-    if (action === "toggle")            toggleChat();
-    else if (action === "connect")      handleConnect();
-    else if (action === "signout")      handleSignOut();
-    else if (action === "start")        startChat();
-    else if (action === "restart")      { messages = []; buttons = []; render(); fetchNode("home"); }
+    if      (action === "toggle")          toggleChat();
+    else if (action === "restart")         { messages = []; buttons = []; render(); fetchNode("home"); }
     else if (action === "switch-playbook") { activePlaybook = null; messages = []; buttons = []; render(); }
-    else if (action === "pick-playbook") {
-      const file = btn.dataset.file;
-      if (file) pickPlaybook(file);
-    }
+    else if (action === "pick-playbook")   { const f = btn.dataset.file; if (f) pickPlaybook(f); }
     else if (action === "option") {
       const idx = parseInt(btn.dataset.index, 10);
-      const b = buttons[idx];
+      const b   = buttons[idx];
       if (b) selectOption(b.label, b.next);
+    }
+    else if (action === "submit-login") {
+      const inputEl = shadow.querySelector("[data-input='username']");
+      const val     = inputEl ? inputEl.value : loginInput;
+      loginInput    = val;
+      handleManualLogin(val);
     }
   });
 

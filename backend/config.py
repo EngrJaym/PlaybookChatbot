@@ -1,43 +1,3 @@
-"""
-Feature Flags & Central Configuration
-======================================
-All runtime switches for the NDS Playbook Chatbot are defined here.
-Values are read from PlaybookChatbot/.env at import time.
-
-DATA SOURCE MODE  (DATA_SOURCE)
---------------------------------
-  "json"        →  Use JSON files only.  No Google Docs calls.
-  "google"      →  JSON defines nodes; Google Docs supply answers by meaning.
-                   If Docs fetch fails the JSON answer is kept as fallback.
-  "both"        →  (RECOMMENDED) Same as "google" but lenient on failures.
-                   Best quality: JSON structure + Docs real-time answers
-                   + JSON fallback for any unmatched nodes.
-
-CACHE
------
-  CACHE_TTL_SECONDS  int   — seconds before Docs answers are re-fetched (0=off)
-
-FEATURE FLAGS
--------------
-  ENABLE_CHAT           bool  — enable/disable the chat endpoint entirely
-  ENABLE_RELOAD         bool  — enable/disable the /api/reload hot-reload endpoint
-  ENABLE_DEBUG_ENDPOINTS bool — enable /api/nodes and /api/flags (debug info)
-  ENABLE_META_ENDPOINT  bool  — enable /api/meta
-  MAINTENANCE_MODE      bool  — return 503 on all chat requests with a message
-  MAINTENANCE_MESSAGE   str   — message shown during maintenance mode
-
-GOOGLE DOCS
------------
-  GOOGLE_SERVICE_ACCOUNT_FILE  — path to service_account.json
-  GOOGLE_DOC_ID_<NAME>         — one per Google Doc
-  GOOGLE_DOC_NODES_<NAME>      — comma-separated node IDs to narrow that doc
-
-GENERAL
--------
-  APP_ENV          — "development" | "production"  (affects logging verbosity)
-  LOG_LEVEL        — "DEBUG" | "INFO" | "WARNING" | "ERROR"
-"""
-
 from __future__ import annotations
 
 import os
@@ -59,41 +19,28 @@ def _str(key: str, default: str = "") -> str:
     return os.getenv(key, default).strip()
 
 
-DATA_SOURCE: str = _str("DATA_SOURCE", "both").lower()
-
-if DATA_SOURCE not in ("json", "google", "both"):
-    DATA_SOURCE = "both"
-
 ENABLE_CHAT:             bool = _bool("ENABLE_CHAT",             True)
 ENABLE_RELOAD:           bool = _bool("ENABLE_RELOAD",           True)
 ENABLE_DEBUG_ENDPOINTS:  bool = _bool("ENABLE_DEBUG_ENDPOINTS",  True)
 ENABLE_META_ENDPOINT:    bool = _bool("ENABLE_META_ENDPOINT",    True)
 ENABLE_ACCESS_CONTROL:   bool = _bool("ENABLE_ACCESS_CONTROL",   True)
 
-MAINTENANCE_MODE:        bool = _bool("MAINTENANCE_MODE",        False)
-MAINTENANCE_MESSAGE:     str  = _str(
+MAINTENANCE_MODE:    bool = _bool("MAINTENANCE_MODE", False)
+MAINTENANCE_MESSAGE: str  = _str(
     "MAINTENANCE_MESSAGE",
     "The playbook is currently under maintenance. Please try again shortly."
 )
-
-_SA_REL   = _str("GOOGLE_SERVICE_ACCOUNT_FILE", "credentials/service_account.json")
-SA_FILE: Path = (Path(_SA_REL) if Path(_SA_REL).is_absolute() else _BACKEND_DIR / _SA_REL)
 
 DATA_DIR_ENV: str = _str("DATA_DIR", "")
 
 APP_ENV:   str = _str("APP_ENV",   "development")
 LOG_LEVEL: str = _str("LOG_LEVEL", "INFO").upper()
 
-CACHE_TTL_SECONDS: int = int(os.getenv("CACHE_TTL_SECONDS", "300"))
-
 
 def as_dict() -> dict:
-    """Return all feature flags as a serialisable dict for the /api/flags endpoint."""
     return {
-        "app_env":             APP_ENV,
-        "data_source":         DATA_SOURCE,
-        "cache_ttl_seconds":   CACHE_TTL_SECONDS,
-        "maintenance_mode":    MAINTENANCE_MODE,
+        "app_env":          APP_ENV,
+        "maintenance_mode": MAINTENANCE_MODE,
         "maintenance_message": MAINTENANCE_MESSAGE if MAINTENANCE_MODE else None,
         "features": {
             "chat":            ENABLE_CHAT,
@@ -101,10 +48,6 @@ def as_dict() -> dict:
             "debug_endpoints": ENABLE_DEBUG_ENDPOINTS,
             "meta_endpoint":   ENABLE_META_ENDPOINT,
             "access_control":  ENABLE_ACCESS_CONTROL,
-        },
-        "google_docs": {
-            "credentials_file":  str(SA_FILE),
-            "credentials_found": SA_FILE.exists(),
         },
     }
 

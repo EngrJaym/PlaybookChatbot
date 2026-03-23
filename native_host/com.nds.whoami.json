@@ -1,0 +1,9 @@
+{
+  "name": "com.nds.whoami",
+  "description": "NDS Playbook Chatbot - Windows username helper",
+  "path": "C:\\Users\\nds-25217\\Desktop\\PlaybookChatbot\\native_host\\nds_whoami_host.bat",
+  "type": "stdio",
+  "allowed_origins": [
+    "chrome-extension://flkppflhklekibbmmlmlpijmjepglhnk/"
+  ]
+}
