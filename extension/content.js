@@ -25,10 +25,16 @@
     });
   }
 
-  function getWindowsUsername() {
+  function getSamFromChrome() {
     return new Promise((resolve) => {
-      chrome.runtime.sendMessage({ action: "get_windows_username" }, (r) => {
-        resolve(r || { username: null, groups: [], error: null });
+      if (!chrome.identity || !chrome.identity.getProfileUserInfo) {
+        resolve(null);
+        return;
+      }
+      chrome.identity.getProfileUserInfo({ accountStatus: "ANY" }, (info) => {
+        if (chrome.runtime.lastError || !info || !info.email) { resolve(null); return; }
+        const sam = info.email.split("@")[0].trim().toLowerCase();
+        resolve(sam || null);
       });
     });
   }
@@ -84,36 +90,29 @@
   container.className = "nds-chatbot";
   shadow.appendChild(container);
 
-  async function attemptAdLogin(username, groups) {
-    const { status, data } = await apiFetch("/ad-login", {
-      method: "POST",
-      body: JSON.stringify({ username: (username || "").trim().toLowerCase(), groups: groups || [] }),
-    });
-    return { status, data };
-  }
-
   async function init() {
     try { const { data } = await apiFetch("/meta"); meta = data; } catch {}
     try {
       const { data } = await apiFetch("/flags");
-      if (data && data.maintenance_mode) maintenance = true;
       if (data && data.features && data.features.access_control === false) acEnabled = false;
     } catch {}
 
     if (!acEnabled) { accessState = "allowed"; autoStart(); return; }
 
     accessState = "checking";
+    render();
 
-    const native      = await getWindowsUsername();
-    const winUsername = native.username;
-    const winGroups   = native.groups || [];
+    const sam = await getSamFromChrome();
 
-    if (winUsername) {
+    if (sam) {
       try {
-        const { status, data } = await attemptAdLogin(winUsername, winGroups);
+        const { status, data } = await apiFetch("/whoami", {
+          method: "POST",
+          body: JSON.stringify({ username: sam }),
+        });
         if (status === 200) {
           adUsername     = data.username;
-          adGroups       = winGroups;
+          adGroups       = data.groups || [];
           userPlaybooks  = data.playbooks || [];
           playbookTitles = data.playbook_titles || {};
           await saveAdUser(adUsername, adGroups, data.team, userPlaybooks, playbookTitles);
@@ -121,8 +120,8 @@
           autoStart();
           return;
         } else if (status === 403) {
-          adUsername  = winUsername;
-          adGroups    = winGroups;
+          adUsername  = sam;
+          adGroups    = [];
           accessState = "not_registered";
         } else {
           const stored = await getStoredAdUser();
@@ -185,13 +184,13 @@
     accessState = "checking";
     render();
     try {
-      const native = await getWindowsUsername();
-      const groups = (native.username && native.username === username.trim().toLowerCase())
-        ? (native.groups || []) : [];
-      const { status, data } = await attemptAdLogin(username, groups);
+      const { status, data } = await apiFetch("/whoami", {
+        method: "POST",
+        body: JSON.stringify({ username: username.trim().toLowerCase() }),
+      });
       if (status === 200) {
         adUsername     = data.username;
-        adGroups       = groups;
+        adGroups       = data.groups || [];
         userPlaybooks  = data.playbooks || [];
         playbookTitles = data.playbook_titles || {};
         await saveAdUser(adUsername, adGroups, data.team, userPlaybooks, playbookTitles);

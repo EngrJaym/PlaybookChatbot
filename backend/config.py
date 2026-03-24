@@ -33,6 +33,11 @@ MAINTENANCE_MESSAGE: str  = _str(
 
 DATA_DIR_ENV: str = _str("DATA_DIR", "")
 
+AD_SERVER:       str = _str("AD_SERVER",       "samba-ad.ad.one-nds.net")
+AD_BASE_DN:      str = _str("AD_BASE_DN",      "DC=ad,DC=one-nds,DC=net")
+AD_BIND_USER:    str = _str("AD_BIND_USER",    "")
+AD_BIND_PASSWORD:str = _str("AD_BIND_PASSWORD","")
+
 APP_ENV:   str = _str("APP_ENV",   "development")
 LOG_LEVEL: str = _str("LOG_LEVEL", "INFO").upper()
 

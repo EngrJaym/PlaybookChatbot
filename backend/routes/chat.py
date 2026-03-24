@@ -11,6 +11,7 @@ from logic.flow import (
     get_playbook_titles,
 )
 from logic.access import resolve_groups, reload_rules
+from logic.ad import lookup_ad_groups
 
 router = APIRouter(prefix="/api", tags=["chat"])
 
@@ -31,6 +32,9 @@ def _flag_check(flag: bool, name: str):
 class ADLoginRequest(BaseModel):
     username: str
     groups: list[str] = []
+
+class WhoamiRequest(BaseModel):
+    username: str
 
 class ChatRequest(BaseModel):
     node_id:  str = "home"
@@ -73,6 +77,42 @@ async def ad_login(req: ADLoginRequest):
         "team":            result["team"],
         "playbooks":       result["playbooks"],
         "playbook_titles": titles,
+    }
+
+
+@router.post("/whoami")
+async def whoami(req: WhoamiRequest):
+    sam = (req.username or "").strip().lower()
+    if not sam:
+        raise HTTPException(status_code=400, detail="Username is required")
+
+    ad_result = lookup_ad_groups(sam)
+
+    if not config.ENABLE_ACCESS_CONTROL:
+        return {
+            "username":        sam,
+            "groups":          ad_result["groups"],
+            "team":            "all",
+            "playbooks":       [],
+            "playbook_titles": {},
+            "ad_error":        ad_result.get("error"),
+        }
+
+    access = resolve_groups(sam, ad_result["groups"])
+    if not access["valid"]:
+        raise HTTPException(
+            status_code=403,
+            detail=f"'{sam}' is not in any authorised AD group. Contact your team lead.",
+        )
+
+    titles = get_playbook_titles(access["playbooks"])
+    return {
+        "username":        access["username"],
+        "groups":          ad_result["groups"],
+        "team":            access["team"],
+        "playbooks":       access["playbooks"],
+        "playbook_titles": titles,
+        "ad_error":        ad_result.get("error"),
     }
 
 
