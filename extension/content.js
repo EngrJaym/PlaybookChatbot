@@ -58,13 +58,16 @@
   // ── Fetch helpers ────────────────────────────────────────────
   async function fetchMeta() {
     try {
-      const res = await fetch(`${API_URL}/meta`);
-      meta = await res.json();
+      const { data } = await apiFetch("/meta");
+      meta = data;
     } catch {}
     try {
-      const res = await fetch(`${API_URL}/flags`);
-      const data = await res.json();
+      const { data } = await apiFetch("/flags");
       if (data?.maintenance_mode) maintenance = true;
+    } catch {}
+    try {
+      const { data } = await apiFetch("/playbooks");
+      availablePlaybooks = (data?.playbooks || []).filter(p => p.file && p.file !== "(google_docs)");
     } catch {}
   }
 
@@ -77,27 +80,26 @@
     render();
 
     try {
-      const res = await fetch(`${API_URL}/chat`, {
+      const body = { node_id: nodeId };
+      if (activePlaybook) body.playbook = activePlaybook;
+      const { status, data } = await apiFetch("/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ node_id: nodeId }),
+        body: JSON.stringify(body),
       });
 
-      if (res.status === 503) {
-        const err = await res.json();
+      if (status === 503) {
         maintenance = true;
         messages.push({
           role: "bot",
           title: "\u{1F527} Under Maintenance",
-          text: err?.detail?.message || "The playbook is currently under maintenance.",
+          text: data?.detail?.message || "The playbook is currently under maintenance.",
         });
         buttons = [];
-      } else if (res.status === 404) {
-        const err = await res.json();
+      } else if (status === 404) {
         messages.push({
           role: "bot",
           title: "Feature Unavailable",
-          text: err?.detail || "This feature is currently disabled.",
+          text: data?.detail || "This feature is currently disabled.",
         });
         buttons = [{ label: "\u{1F3E0} Back to Home", next: "home" }];
       } else if (res.status === 401 || res.status === 403) {
@@ -123,7 +125,6 @@
         });
         buttons = [{ label: "Try Again", next: "home" }];
       } else {
-        const data = await res.json();
         maintenance = false;
         messages.push({
           role: "bot",
@@ -216,7 +217,23 @@
   function startChat() {
     messages = [];
     buttons = [];
+    if (availablePlaybooks.length > 1 && !activePlaybook) {
+      started = true;
+      render();
+      return;
+    }
+    if (availablePlaybooks.length === 1 && !activePlaybook) {
+      activePlaybook = availablePlaybooks[0].file;
+    }
     started = true;
+    render();
+    fetchNode("home");
+  }
+
+  function pickPlaybook(filename) {
+    activePlaybook = filename;
+    messages = [];
+    buttons = [];
     render();
     fetchNode("home");
   }
@@ -227,48 +244,63 @@
 
   // ── Render ───────────────────────────────────────────────────
   function render() {
-    const title = meta?.title || "NDS Client Management Playbook";
+    const hasMultiple = availablePlaybooks.length > 1;
+    const welcomeTitle = hasMultiple ? "NDS Playbook Chatbot" : (meta?.title || "NDS Playbook Chatbot");
     const company = meta?.company || "National Data & Surveying Services";
     const version = meta?.version || "";
 
     let html = "";
 
-    // Backdrop
     if (isOpen) {
       html += `<div class="nds-backdrop"></div>`;
     }
 
-    // Chat window
     if (isOpen) {
       html += `<div class="nds-chat-window">`;
 
-      // Header
       html += `<div class="nds-chat-window__header">
-        <div class="nds-chat-window__header-left">
-          <span class="nds-chat-window__logo">NDS</span>
-          <div class="nds-chat-window__header-text">
-            <span class="nds-chat-window__title">CM Playbook</span>
-            <span class="nds-chat-window__subtitle">${esc(company)}</span>
-            ${version ? `<span class="nds-chat-window__version">v${esc(version)}</span>` : ""}
+        <div class="nds-chat-window__header-top">
+          <div class="nds-chat-window__header-left">
+            <span class="nds-chat-window__logo">NDS</span>
+            <div class="nds-chat-window__header-text">
+              <span class="nds-chat-window__title">Playbook</span>
+              <span class="nds-chat-window__subtitle">${esc(company)}</span>
+            </div>
           </div>
+          ${version ? `<span class="nds-chat-window__version">v${esc(version)}</span>` : ""}
         </div>
-        ${started ? `<button class="nds-chat-window__restart" data-action="restart">
-          <span class="nds-chat-window__restart-icon">${ICON_REFRESH}</span>
-          <span>Start Over</span>
-        </button>` : ""}
+        ${started && activePlaybook ? `<div class="nds-chat-window__header-bar">
+          <span class="nds-header-email">${esc(activePlaybook.replace('.json','').replace(/_/g,' ').replace(/-/g,' ').toUpperCase())}</span>
+          <div class="nds-header-actions">
+            ${hasMultiple ? `<button class="nds-header-btn nds-header-btn--ghost" data-action="switch-playbook">\u21c4 Switch</button>` : ""}
+            <button class="nds-header-btn nds-header-btn--ghost" data-action="restart"><span style="display:inline-flex;align-items:center;">${ICON_REFRESH}</span> Start Over</button>
+          </div>
+        </div>` : ""}
       </div>`;
 
-      // Body
       html += `<div class="nds-chat-window__body">`;
 
       if (!started) {
         html += `<div class="nds-chat-window__welcome">
           <div class="nds-chat-window__welcome-icon">${ICON_CLIPBOARD}</div>
-          <h3>${esc(title)}</h3>
+          <h3>${esc(welcomeTitle)}</h3>
           <p class="nds-chat-window__company">${esc(company)}</p>
-          <p class="nds-chat-window__desc">Your interactive guide to account setup, mapping, estimation, pricing, PSU, study types, QC checklists, and more.</p>
+          <p class="nds-chat-window__desc">Your interactive guide to company processes, playbooks, and procedures.</p>
           <button class="nds-chat-window__start-btn" data-action="start">Open Playbook</button>
         </div>`;
+
+      } else if (hasMultiple && !activePlaybook) {
+        html += `<div class="nds-chat-window__welcome">
+          <div class="nds-chat-window__welcome-icon">${ICON_CLIPBOARD}</div>
+          <h3>Select a Playbook</h3>
+          <p class="nds-chat-window__desc">Choose a playbook to open.</p>
+          <div class="nds-option-buttons" style="margin-top:12px;">`;
+        for (const pb of availablePlaybooks) {
+          const label = pb.title || pb.file.replace('.json','').replace(/_/g,' ').replace(/-/g,' ');
+          html += `<button class="nds-option-btn" data-action="pick-playbook" data-file="${esc(pb.file)}">${esc(label)}</button>`;
+        }
+        html += `</div></div>`;
+
       } else {
         // Messages
         html += `<div class="nds-message-list">`;
@@ -332,7 +364,12 @@
     const action = btn.dataset.action;
     if (action === "toggle") toggleChat();
     else if (action === "start") startChat();
-    else if (action === "restart") startChat();
+    else if (action === "restart") { messages = []; buttons = []; render(); fetchNode("home"); }
+    else if (action === "switch-playbook") { activePlaybook = null; messages = []; buttons = []; render(); }
+    else if (action === "pick-playbook") {
+      const file = btn.dataset.file;
+      if (file) pickPlaybook(file);
+    }
     else if (action === "option") {
       const idx = parseInt(btn.dataset.index, 10);
       const b = buttons[idx];
