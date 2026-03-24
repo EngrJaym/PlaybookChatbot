@@ -1,7 +1,8 @@
 (function () {
   if (document.getElementById("nds-playbook-root")) return;
 
-  const API_URL = "http://127.0.0.1:8001/api";
+  const DEFAULT_API_URL = "http://127.0.0.1:8001/api";
+  let API_URL = DEFAULT_API_URL;
 
   // ── State ────────────────────────────────────────────────────
   let isOpen = false;
@@ -11,6 +12,25 @@
   let buttons = [];
   let meta = null;
   let maintenance = false;
+
+  function normalizeApiUrl(raw) {
+    const cleaned = (raw || "").trim().replace(/\/+$/, "");
+    return cleaned || DEFAULT_API_URL;
+  }
+
+  function loadApiUrlFromStorage() {
+    return new Promise((resolve) => {
+      try {
+        chrome.storage.sync.get(["ndsApiUrl"], (result) => {
+          API_URL = normalizeApiUrl(result?.ndsApiUrl);
+          resolve();
+        });
+      } catch {
+        API_URL = DEFAULT_API_URL;
+        resolve();
+      }
+    });
+  }
 
   // ── SVG Icons ────────────────────────────────────────────────
   const ICON_ROBOT = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v3"/><circle cx="12" cy="6" r="1.2" fill="none"/><path d="M9 5.6h6"/><path d="M8.4 6.4H7.3A3.3 3.3 0 0 0 4 9.7V15a5 5 0 0 0 5 5h6a5 5 0 0 0 5-5V9.7a3.3 3.3 0 0 0-3.3-3.3H15.6"/><path d="M9.2 13h.01"/><path d="M14.8 13h.01"/><path d="M9.3 16.1c.9.9 1.9 1.4 2.7 1.4s1.8-.5 2.7-1.4"/></svg>`;
@@ -117,7 +137,7 @@
       messages.push({
         role: "bot",
         title: "Connection Error",
-        text: "\u26A0\uFE0F Could not reach the server. Make sure Docker is running and the backend is on port 8001 (http://127.0.0.1:8001).",
+        text: `\u26A0\uFE0F Could not reach the server at ${API_URL}. Please verify the API URL and server status.`,
       });
       buttons = [{ label: "Try Again", next: "home" }];
     } finally {
@@ -328,6 +348,6 @@
   });
 
   // ── Init ─────────────────────────────────────────────────────
-  fetchMeta().then(() => render());
+  loadApiUrlFromStorage().then(() => fetchMeta()).then(() => render());
 })();
 
