@@ -32,6 +32,26 @@
     });
   }
 
+  function loadUiStateFromStorage() {
+    return new Promise((resolve) => {
+      try {
+        chrome.storage.local.get(["ndsChatOpen"], (result) => {
+          isOpen = Boolean(result?.ndsChatOpen);
+          resolve();
+        });
+      } catch {
+        isOpen = false;
+        resolve();
+      }
+    });
+  }
+
+  function saveUiState() {
+    try {
+      chrome.storage.local.set({ ndsChatOpen: isOpen });
+    } catch {}
+  }
+
   // ── SVG Icons ────────────────────────────────────────────────
   const ICON_ROBOT = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v3"/><circle cx="12" cy="6" r="1.2" fill="none"/><path d="M9 5.6h6"/><path d="M8.4 6.4H7.3A3.3 3.3 0 0 0 4 9.7V15a5 5 0 0 0 5 5h6a5 5 0 0 0 5-5V9.7a3.3 3.3 0 0 0-3.3-3.3H15.6"/><path d="M9.2 13h.01"/><path d="M14.8 13h.01"/><path d="M9.3 16.1c.9.9 1.9 1.4 2.7 1.4s1.8-.5 2.7-1.4"/></svg>`;
   const ICON_X = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>`;
@@ -211,6 +231,7 @@
   // ── Actions ──────────────────────────────────────────────────
   function toggleChat() {
     isOpen = !isOpen;
+    saveUiState();
     render();
   }
 
@@ -385,6 +406,9 @@
   });
 
   // ── Init ─────────────────────────────────────────────────────
-  loadApiUrlFromStorage().then(() => fetchMeta()).then(() => render());
+  loadApiUrlFromStorage()
+    .then(() => loadUiStateFromStorage())
+    .then(() => fetchMeta())
+    .then(() => render());
 })();
 

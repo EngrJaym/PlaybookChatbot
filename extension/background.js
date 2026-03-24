@@ -1,3 +1,14 @@
+const DEFAULT_API_URL = "http://127.0.0.1:8001/api";
+
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.storage.sync.get(["ndsApiUrl"], (result) => {
+    const current = (result?.ndsApiUrl || "").trim();
+    if (!current) {
+      chrome.storage.sync.set({ ndsApiUrl: DEFAULT_API_URL });
+    }
+  });
+});
+
 chrome.action.onClicked.addListener((tab) => {
   chrome.tabs.sendMessage(tab.id, { action: "toggle_chatbot" });
 });
