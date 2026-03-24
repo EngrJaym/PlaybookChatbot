@@ -78,6 +78,31 @@ DATA_DIR_ENV: str = _str("DATA_DIR", "")
 APP_ENV:   str = _str("APP_ENV",   "development")
 LOG_LEVEL: str = _str("LOG_LEVEL", "INFO").upper()
 
+# -----------------------------------------------------------------------------
+# Team Resolution via trusted proxy headers (no backend LDAP calls)
+# -----------------------------------------------------------------------------
+TEAM_HEADER_NAME: str = _str("TEAM_HEADER_NAME", "X-User-Team")
+TEAM_GROUPS_HEADER_NAME: str = _str("TEAM_GROUPS_HEADER_NAME", "X-User-Groups")
+TEAM_REQUIRE_AUTH: bool = _bool("TEAM_REQUIRE_AUTH", False)
+TEAM_PLAYBOOK_FALLBACK_FILE: str = _str("TEAM_PLAYBOOK_FALLBACK_FILE", "cm.json")
+DEV_USER_GROUP_CNS: str = _str("DEV_USER_GROUP_CNS", "")
+
+# Team mapping:
+#   TEAM_MAP__<TEAM_OR_GROUP>=<playbook_file.json>
+TEAM_MAP_PREFIX: str = "TEAM_MAP__"
+TEAM_GROUP_PLAYBOOK_MAP: dict[str, str] = {}
+for key, value in os.environ.items():
+    if not key.startswith(TEAM_MAP_PREFIX):
+        continue
+    group_key = key[len(TEAM_MAP_PREFIX):].strip().upper()
+    playbook_file = value.strip()
+    if group_key and playbook_file:
+        TEAM_GROUP_PLAYBOOK_MAP[group_key] = playbook_file
+
+TEAM_GROUP_PRIORITY: list[str] = [
+    g.strip().upper() for g in _str("TEAM_PRIORITY", "").split(",") if g.strip()
+]
+
 
 def as_dict() -> dict:
     """Return all feature flags as a serialisable dict for the /api/flags endpoint."""
@@ -95,6 +120,14 @@ def as_dict() -> dict:
         "google_docs": {
             "credentials_file":  str(SA_FILE),
             "credentials_found": SA_FILE.exists(),
+        },
+        "team_resolution": {
+            "header_name": TEAM_HEADER_NAME,
+            "groups_header_name": TEAM_GROUPS_HEADER_NAME,
+            "require_auth": TEAM_REQUIRE_AUTH,
+            "fallback_playbook": TEAM_PLAYBOOK_FALLBACK_FILE,
+            "mapped_group_count": len(TEAM_GROUP_PLAYBOOK_MAP),
+            "priority_count": len(TEAM_GROUP_PRIORITY),
         },
     }
 

@@ -80,8 +80,28 @@
           text: err?.detail || "This feature is currently disabled.",
         });
         buttons = [{ label: "\u{1F3E0} Back to Home", next: "home" }];
+      } else if (res.status === 401 || res.status === 403) {
+        const isUnauthorized = res.status === 401;
+        messages.push({
+          role: "bot",
+          title: isUnauthorized ? "Secure Access Required" : "Team Access Required",
+          text: isUnauthorized
+            ? "Please access the chatbot through your company network or approved gateway, then try again."
+            : "Your account is not currently assigned to an allowed team for this chatbot; please contact your administrator.",
+        });
+        buttons = [{ label: "Try Again", next: "home" }];
       } else if (!res.ok) {
-        throw new Error("Failed");
+        let detail = `Request failed with status ${res.status}.`;
+        try {
+          const err = await res.json();
+          detail = err?.detail || detail;
+        } catch {}
+        messages.push({
+          role: "bot",
+          title: "Request Failed",
+          text: detail,
+        });
+        buttons = [{ label: "Try Again", next: "home" }];
       } else {
         const data = await res.json();
         maintenance = false;
