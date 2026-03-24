@@ -368,3 +368,4 @@ def list_playbooks() -> list:
 def get_active_playbook() -> str:
     cached = [p.name for p in _CACHE]
     return ", ".join(cached) if cached else "none"
+    
