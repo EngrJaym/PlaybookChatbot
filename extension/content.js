@@ -12,6 +12,8 @@
   let buttons = [];
   let meta = null;
   let maintenance = false;
+  let availablePlaybooks = [];
+  let activePlaybook = null;
 
   function normalizeApiUrl(raw) {
     const cleaned = (raw || "").trim().replace(/\/+$/, "");
@@ -411,4 +413,3 @@
     .then(() => fetchMeta())
     .then(() => render());
 })();
-
