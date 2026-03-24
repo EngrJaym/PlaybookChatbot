@@ -54,23 +54,6 @@
     } catch {}
   }
 
-  async function apiFetch(path, options = {}) {
-    const rel = path.startsWith("/") ? path : `/${path}`;
-    const url = `${API_URL.replace(/\/+$/, "")}${rel}`;
-    const headers = {
-      "Content-Type": "application/json",
-      ...(options.headers || {}),
-    };
-    const res = await fetch(url, { ...options, headers });
-    let data = null;
-    try {
-      data = await res.json();
-    } catch {
-      data = null;
-    }
-    return { status: res.status, data, ok: res.ok };
-  }
-
   // ── SVG Icons ────────────────────────────────────────────────
   const ICON_ROBOT = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v3"/><circle cx="12" cy="6" r="1.2" fill="none"/><path d="M9 5.6h6"/><path d="M8.4 6.4H7.3A3.3 3.3 0 0 0 4 9.7V15a5 5 0 0 0 5 5h6a5 5 0 0 0 5-5V9.7a3.3 3.3 0 0 0-3.3-3.3H15.6"/><path d="M9.2 13h.01"/><path d="M14.8 13h.01"/><path d="M9.3 16.1c.9.9 1.9 1.4 2.7 1.4s1.8-.5 2.7-1.4"/></svg>`;
   const ICON_X = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>`;
@@ -95,18 +78,55 @@
   shadow.appendChild(container);
 
   // ── Fetch helpers ────────────────────────────────────────────
+  // Route every request through the background service-worker so we
+  // are not blocked by the host page's Content-Security-Policy.
+  function apiFetch(path, options = {}) {
+    const url = API_URL + path;
+    const defaultHeaders = { "Content-Type": "application/json" };
+    const fetchOptions = {
+      ...options,
+      headers: { ...defaultHeaders, ...(options.headers || {}) },
+    };
+    return new Promise((resolve, reject) => {
+      chrome.runtime.sendMessage(
+        { action: "api_fetch", url, options: fetchOptions },
+        (response) => {
+          if (chrome.runtime.lastError) {
+            return reject(new Error(chrome.runtime.lastError.message));
+          }
+          if (!response || response.ok === false) {
+            // response.ok === false means the background fetch() itself
+            // threw (network error), not an HTTP error status.
+            if (response && response.error) {
+              return reject(new Error(response.error));
+            }
+            return reject(new Error("Background fetch failed"));
+          }
+          // Normalise so callers can use { status, ok, data }
+          resolve({
+            status: response.status,
+            ok:     response.status >= 200 && response.status < 300,
+            data:   response.data,
+          });
+        }
+      );
+    });
+  }
+
   async function fetchMeta() {
     try {
-      const { data } = await apiFetch("/meta");
-      meta = data;
+      const { ok, data } = await apiFetch("/meta");
+      if (ok && data) meta = data;
     } catch {}
     try {
-      const { data } = await apiFetch("/flags");
-      if (data?.maintenance_mode) maintenance = true;
+      const { ok, data } = await apiFetch("/flags");
+      if (ok && data?.maintenance_mode) maintenance = true;
     } catch {}
     try {
-      const { data } = await apiFetch("/playbooks");
-      availablePlaybooks = (data?.playbooks || []).filter(p => p.file && p.file !== "(google_docs)");
+      const { ok, data } = await apiFetch("/playbooks");
+      if (ok && data) {
+        availablePlaybooks = (data?.playbooks || []).filter(p => p.file && p.file !== "(google_docs)");
+      }
     } catch {}
   }
 

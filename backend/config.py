@@ -83,6 +83,8 @@ DATA_DIR_ENV: str = _str("DATA_DIR", "")
 APP_ENV:   str = _str("APP_ENV",   "development")
 LOG_LEVEL: str = _str("LOG_LEVEL", "INFO").upper()
 
+CACHE_TTL_SECONDS: int = int(os.getenv("CACHE_TTL_SECONDS", "300"))
+
 # -----------------------------------------------------------------------------
 # Team Resolution via trusted proxy headers (no backend LDAP calls)
 # -----------------------------------------------------------------------------
