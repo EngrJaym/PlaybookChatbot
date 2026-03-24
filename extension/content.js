@@ -54,6 +54,23 @@
     } catch {}
   }
 
+  async function apiFetch(path, options = {}) {
+    const rel = path.startsWith("/") ? path : `/${path}`;
+    const url = `${API_URL.replace(/\/+$/, "")}${rel}`;
+    const headers = {
+      "Content-Type": "application/json",
+      ...(options.headers || {}),
+    };
+    const res = await fetch(url, { ...options, headers });
+    let data = null;
+    try {
+      data = await res.json();
+    } catch {
+      data = null;
+    }
+    return { status: res.status, data, ok: res.ok };
+  }
+
   // ── SVG Icons ────────────────────────────────────────────────
   const ICON_ROBOT = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v3"/><circle cx="12" cy="6" r="1.2" fill="none"/><path d="M9 5.6h6"/><path d="M8.4 6.4H7.3A3.3 3.3 0 0 0 4 9.7V15a5 5 0 0 0 5 5h6a5 5 0 0 0 5-5V9.7a3.3 3.3 0 0 0-3.3-3.3H15.6"/><path d="M9.2 13h.01"/><path d="M14.8 13h.01"/><path d="M9.3 16.1c.9.9 1.9 1.4 2.7 1.4s1.8-.5 2.7-1.4"/></svg>`;
   const ICON_X = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>`;
@@ -104,7 +121,7 @@
     try {
       const body = { node_id: nodeId };
       if (activePlaybook) body.playbook = activePlaybook;
-      const { status, data } = await apiFetch("/chat", {
+      const { status, data, ok } = await apiFetch("/chat", {
         method: "POST",
         body: JSON.stringify(body),
       });
@@ -124,8 +141,8 @@
           text: data?.detail || "This feature is currently disabled.",
         });
         buttons = [{ label: "\u{1F3E0} Back to Home", next: "home" }];
-      } else if (res.status === 401 || res.status === 403) {
-        const isUnauthorized = res.status === 401;
+      } else if (status === 401 || status === 403) {
+        const isUnauthorized = status === 401;
         messages.push({
           role: "bot",
           title: isUnauthorized ? "Secure Access Required" : "Team Access Required",
@@ -134,12 +151,11 @@
             : "Your account is not currently assigned to an allowed team for this chatbot; please contact your administrator.",
         });
         buttons = [{ label: "Try Again", next: "home" }];
-      } else if (!res.ok) {
-        let detail = `Request failed with status ${res.status}.`;
-        try {
-          const err = await res.json();
-          detail = err?.detail || detail;
-        } catch {}
+      } else if (!ok) {
+        const detail =
+          typeof data?.detail === "string"
+            ? data.detail
+            : data?.detail?.message || `Request failed (${status}).`;
         messages.push({
           role: "bot",
           title: "Request Failed",
@@ -157,12 +173,20 @@
         buttons = data.buttons || [];
       }
     } catch {
+      const isLocalDefault =
+        API_URL.includes("127.0.0.1") || API_URL.includes("localhost");
+      const hint = isLocalDefault
+        ? " This PC is trying localhost. If the API runs on another machine (for example your office server), open extension options and set the API URL to that server (include /api)."
+        : " Check that the server is running and this PC can reach that address on the network.";
       messages.push({
         role: "bot",
         title: "Connection Error",
-        text: `\u26A0\uFE0F Could not reach the server at ${API_URL}. Please verify the API URL and server status.`,
+        text: `Could not reach the server at ${API_URL}.${hint}`,
       });
-      buttons = [{ label: "Try Again", next: "home" }];
+      buttons = [
+        { label: "Try Again", next: "home" },
+        { label: "API settings", next: "__open_options__" },
+      ];
     } finally {
       loading = false;
       render();
@@ -262,6 +286,12 @@
   }
 
   function selectOption(label, next) {
+    if (next === "__open_options__") {
+      try {
+        chrome.runtime.openOptionsPage();
+      } catch {}
+      return;
+    }
     fetchNode(next, label);
   }
 
@@ -406,6 +436,14 @@
       toggleChat();
     }
   });
+
+  try {
+    chrome.storage.onChanged.addListener((changes, area) => {
+      if (area !== "sync" || !changes.ndsApiUrl) return;
+      API_URL = normalizeApiUrl(changes.ndsApiUrl.newValue);
+      fetchMeta().then(() => render());
+    });
+  } catch {}
 
   // ── Init ─────────────────────────────────────────────────────
   loadApiUrlFromStorage()
