@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NDS Chatbot Settings</title>
+    <style>
+      :root {
+        color-scheme: light;
+      }
+      body {
+        margin: 0;
+        font-family: "Segoe UI", Roboto, Arial, sans-serif;
+        background: #f4f7fc;
+        color: #0f172a;
+      }
+      .wrap {
+        max-width: 680px;
+        margin: 36px auto;
+        background: #fff;
+        border: 1px solid #d8e2f2;
+        border-radius: 14px;
+        box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08);
+        padding: 22px;
+      }
+      h1 {
+        margin: 0 0 8px;
+        font-size: 20px;
+        color: #173b80;
+      }
+      p {
+        margin: 0 0 16px;
+        color: #475569;
+      }
+      label {
+        display: block;
+        font-size: 13px;
+        font-weight: 600;
+        margin-bottom: 8px;
+      }
+      input {
+        width: 100%;
+        height: 42px;
+        border: 1px solid #cbd5e1;
+        border-radius: 10px;
+        padding: 0 12px;
+        font-size: 14px;
+        outline: none;
+      }
+      input:focus {
+        border-color: #1f4ea8;
+        box-shadow: 0 0 0 3px rgba(31, 78, 168, 0.15);
+      }
+      .actions {
+        margin-top: 14px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      button {
+        height: 38px;
+        border: 1px solid #1f4ea8;
+        background: #1f4ea8;
+        color: #fff;
+        border-radius: 10px;
+        padding: 0 16px;
+        cursor: pointer;
+        font-weight: 600;
+      }
+      .status {
+        font-size: 13px;
+        color: #0f5132;
+      }
+      code {
+        background: #eef3fb;
+        border: 1px solid #dbe6fa;
+        border-radius: 6px;
+        padding: 1px 6px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <h1>NDS Chatbot Extension Settings</h1>
+      <p>Set the central API endpoint used by all pages in this browser profile.</p>
+      <label for="apiUrl">API URL (include <code>/api</code>)</label>
+      <input id="apiUrl" type="url" placeholder="https://chatbot.company.local/api" />
+      <div class="actions">
+        <button id="saveBtn" type="button">Save</button>
+        <span id="status" class="status"></span>
+      </div>
+    </div>
+    <script src="options.js"></script>
+  </body>
+</html>

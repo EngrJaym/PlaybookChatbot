@@ -1,39 +1,8 @@
 (function () {
   if (document.getElementById("nds-playbook-root")) return;
 
-  const API_URL = "http://127.0.0.1:8001/api";
-
-  // ── Background proxy fetch (bypasses mixed-content blocking on https:// pages) ──
-  function apiFetch(path, options = {}) {
-    return new Promise((resolve, reject) => {
-      chrome.runtime.sendMessage(
-        {
-          action: "api_fetch",
-          url: `${API_URL}${path}`,
-          options: {
-            method: options.method || "GET",
-            headers: { "Content-Type": "application/json", ...(options.headers || {}) },
-            body: options.body || undefined,
-          },
-        },
-        (response) => {
-          if (chrome.runtime.lastError) {
-            reject(new Error(chrome.runtime.lastError.message));
-            return;
-          }
-          if (!response) {
-            reject(new Error("No response from background"));
-            return;
-          }
-          if (!response.ok) {
-            reject(new Error(response.error || "Network error"));
-            return;
-          }
-          resolve({ status: response.status, data: response.data });
-        }
-      );
-    });
-  }
+  const DEFAULT_API_URL = "http://127.0.0.1:8001/api";
+  let API_URL = DEFAULT_API_URL;
 
   // ── State ────────────────────────────────────────────────────
   let isOpen = false;
@@ -45,6 +14,45 @@
   let maintenance = false;
   let availablePlaybooks = [];
   let activePlaybook = null;
+
+  function normalizeApiUrl(raw) {
+    const cleaned = (raw || "").trim().replace(/\/+$/, "");
+    return cleaned || DEFAULT_API_URL;
+  }
+
+  function loadApiUrlFromStorage() {
+    return new Promise((resolve) => {
+      try {
+        chrome.storage.sync.get(["ndsApiUrl"], (result) => {
+          API_URL = normalizeApiUrl(result?.ndsApiUrl);
+          resolve();
+        });
+      } catch {
+        API_URL = DEFAULT_API_URL;
+        resolve();
+      }
+    });
+  }
+
+  function loadUiStateFromStorage() {
+    return new Promise((resolve) => {
+      try {
+        chrome.storage.local.get(["ndsChatOpen"], (result) => {
+          isOpen = Boolean(result?.ndsChatOpen);
+          resolve();
+        });
+      } catch {
+        isOpen = false;
+        resolve();
+      }
+    });
+  }
+
+  function saveUiState() {
+    try {
+      chrome.storage.local.set({ ndsChatOpen: isOpen });
+    } catch {}
+  }
 
   // ── SVG Icons ────────────────────────────────────────────────
   const ICON_ROBOT = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v3"/><circle cx="12" cy="6" r="1.2" fill="none"/><path d="M9 5.6h6"/><path d="M8.4 6.4H7.3A3.3 3.3 0 0 0 4 9.7V15a5 5 0 0 0 5 5h6a5 5 0 0 0 5-5V9.7a3.3 3.3 0 0 0-3.3-3.3H15.6"/><path d="M9.2 13h.01"/><path d="M14.8 13h.01"/><path d="M9.3 16.1c.9.9 1.9 1.4 2.7 1.4s1.8-.5 2.7-1.4"/></svg>`;
@@ -70,18 +78,55 @@
   shadow.appendChild(container);
 
   // ── Fetch helpers ────────────────────────────────────────────
+  // Route every request through the background service-worker so we
+  // are not blocked by the host page's Content-Security-Policy.
+  function apiFetch(path, options = {}) {
+    const url = API_URL + path;
+    const defaultHeaders = { "Content-Type": "application/json" };
+    const fetchOptions = {
+      ...options,
+      headers: { ...defaultHeaders, ...(options.headers || {}) },
+    };
+    return new Promise((resolve, reject) => {
+      chrome.runtime.sendMessage(
+        { action: "api_fetch", url, options: fetchOptions },
+        (response) => {
+          if (chrome.runtime.lastError) {
+            return reject(new Error(chrome.runtime.lastError.message));
+          }
+          if (!response || response.ok === false) {
+            // response.ok === false means the background fetch() itself
+            // threw (network error), not an HTTP error status.
+            if (response && response.error) {
+              return reject(new Error(response.error));
+            }
+            return reject(new Error("Background fetch failed"));
+          }
+          // Normalise so callers can use { status, ok, data }
+          resolve({
+            status: response.status,
+            ok:     response.status >= 200 && response.status < 300,
+            data:   response.data,
+          });
+        }
+      );
+    });
+  }
+
   async function fetchMeta() {
     try {
-      const { data } = await apiFetch("/meta");
-      meta = data;
+      const { ok, data } = await apiFetch("/meta");
+      if (ok && data) meta = data;
     } catch {}
     try {
-      const { data } = await apiFetch("/flags");
-      if (data?.maintenance_mode) maintenance = true;
+      const { ok, data } = await apiFetch("/flags");
+      if (ok && data?.maintenance_mode) maintenance = true;
     } catch {}
     try {
-      const { data } = await apiFetch("/playbooks");
-      availablePlaybooks = (data?.playbooks || []).filter(p => p.file && p.file !== "(google_docs)");
+      const { ok, data } = await apiFetch("/playbooks");
+      if (ok && data) {
+        availablePlaybooks = (data?.playbooks || []).filter(p => p.file && p.file !== "(google_docs)");
+      }
     } catch {}
   }
 
@@ -96,7 +141,7 @@
     try {
       const body = { node_id: nodeId };
       if (activePlaybook) body.playbook = activePlaybook;
-      const { status, data } = await apiFetch("/chat", {
+      const { status, data, ok } = await apiFetch("/chat", {
         method: "POST",
         body: JSON.stringify(body),
       });
@@ -116,6 +161,27 @@
           text: data?.detail || "This feature is currently disabled.",
         });
         buttons = [{ label: "\u{1F3E0} Back to Home", next: "home" }];
+      } else if (status === 401 || status === 403) {
+        const isUnauthorized = status === 401;
+        messages.push({
+          role: "bot",
+          title: isUnauthorized ? "Secure Access Required" : "Team Access Required",
+          text: isUnauthorized
+            ? "Please access the chatbot through your company network or approved gateway, then try again."
+            : "Your account is not currently assigned to an allowed team for this chatbot; please contact your administrator.",
+        });
+        buttons = [{ label: "Try Again", next: "home" }];
+      } else if (!ok) {
+        const detail =
+          typeof data?.detail === "string"
+            ? data.detail
+            : data?.detail?.message || `Request failed (${status}).`;
+        messages.push({
+          role: "bot",
+          title: "Request Failed",
+          text: detail,
+        });
+        buttons = [{ label: "Try Again", next: "home" }];
       } else {
         maintenance = false;
         messages.push({
@@ -127,12 +193,20 @@
         buttons = data.buttons || [];
       }
     } catch {
+      const isLocalDefault =
+        API_URL.includes("127.0.0.1") || API_URL.includes("localhost");
+      const hint = isLocalDefault
+        ? " This PC is trying localhost. If the API runs on another machine (for example your office server), open extension options and set the API URL to that server (include /api)."
+        : " Check that the server is running and this PC can reach that address on the network.";
       messages.push({
         role: "bot",
         title: "Connection Error",
-        text: "\u26A0\uFE0F Could not reach the server. Make sure Docker is running and the backend is on port 8001 (http://127.0.0.1:8001).",
+        text: `Could not reach the server at ${API_URL}.${hint}`,
       });
-      buttons = [{ label: "Try Again", next: "home" }];
+      buttons = [
+        { label: "Try Again", next: "home" },
+        { label: "API settings", next: "__open_options__" },
+      ];
     } finally {
       loading = false;
       render();
@@ -203,6 +277,7 @@
   // ── Actions ──────────────────────────────────────────────────
   function toggleChat() {
     isOpen = !isOpen;
+    saveUiState();
     render();
   }
 
@@ -231,6 +306,12 @@
   }
 
   function selectOption(label, next) {
+    if (next === "__open_options__") {
+      try {
+        chrome.runtime.openOptionsPage();
+      } catch {}
+      return;
+    }
     fetchNode(next, label);
   }
 
@@ -376,7 +457,17 @@
     }
   });
 
-  // ── Init ─────────────────────────────────────────────────────
-  fetchMeta().then(() => render());
-})();
+  try {
+    chrome.storage.onChanged.addListener((changes, area) => {
+      if (area !== "sync" || !changes.ndsApiUrl) return;
+      API_URL = normalizeApiUrl(changes.ndsApiUrl.newValue);
+      fetchMeta().then(() => render());
+    });
+  } catch {}
 
+  // ── Init ─────────────────────────────────────────────────────
+  loadApiUrlFromStorage()
+    .then(() => loadUiStateFromStorage())
+    .then(() => fetchMeta())
+    .then(() => render());
+})();

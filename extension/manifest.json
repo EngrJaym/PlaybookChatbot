@@ -11,7 +11,9 @@
   "permissions": ["storage", "activeTab"],
   "host_permissions": [
     "http://localhost:8001/*",
-    "http://127.0.0.1:8001/*"
+    "http://127.0.0.1:8001/*",
+    "http://*/*",
+    "https://*/*"
   ],
   "action": {
     "default_icon": {
@@ -21,6 +23,7 @@
     },
     "default_title": "NDS Playbook Chatbot"
   },
+  "options_page": "options.html",
   "background": {
     "service_worker": "background.js"
   },

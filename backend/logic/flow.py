@@ -669,6 +669,18 @@ def get_meta() -> dict:
         return dict(_CACHE[home_path]["meta"])
     return {"title": "NDS Playbook Chatbot", "version": "1.0", "company": "NDS"}
 
+def get_meta_for_playbook_file(playbook_file: str) -> dict:
+    path = (
+        playbook_file
+        if Path(playbook_file).is_absolute()
+        else (DATA_DIR / playbook_file)
+    )
+    if not path.exists():
+        raise FileNotFoundError(f"Playbook file not found: {playbook_file}")
+    if path in _CACHE:
+        return dict(_CACHE[path]["meta"])
+    book = _load_playbook_file(path)
+    return dict(book["meta"])
 
 def get_node(node_id: str) -> Optional[dict]:
     _maybe_refresh()
@@ -692,7 +704,30 @@ def get_node(node_id: str) -> Optional[dict]:
         "citation": _CITATIONS.get(node_id),
     }
 
-
+def get_node_for_playbook_file(node_id: str, playbook_file: str) -> Optional[dict]:
+    path = (
+        playbook_file
+        if Path(playbook_file).is_absolute()
+        else (DATA_DIR / playbook_file)
+    )
+    if not path.exists():
+        return None
+    try:
+        book = _load_playbook_file(path)
+    except Exception as exc:
+        logger.error(f"Failed to load playbook '{path}': {exc}")
+        return None
+    node = book["flow"].get(node_id)
+    if node is None:
+        return None
+    return {
+        "id":       node["id"],
+        "message":  node["message"],
+        "answer":   node.get("answer"),
+        "buttons":  node.get("buttons", []),
+        "type":     node.get("type"),
+        "citation": _CITATIONS.get(node_id),
+    }
 def get_all_node_ids() -> list:
     return list(_INDEX.keys())
 
@@ -731,4 +766,4 @@ def get_active_playbook() -> str:
     for p in _CACHE:
         cached.append("google_docs" if p == _GDOCS_SENTINEL else p.name)
     return ", ".join(cached) if cached else "none"
-
+    

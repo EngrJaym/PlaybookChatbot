@@ -1,12 +1,14 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
 import config
 from logic.flow import (
-    get_node, get_meta, get_all_node_ids,
+    get_meta_for_playbook_file, get_all_node_ids,
+    get_node_for_playbook_file,
     get_source, reload, _collect_doc_entries,
     list_playbooks, get_active_playbook,
 )
+from logic.team_resolver import resolve_team_and_playbook
 
 router = APIRouter(prefix="/api", tags=["chat"])
 
@@ -57,18 +59,20 @@ class MetaResponse(BaseModel):
 
 
 @router.get("/meta", response_model=MetaResponse)
-async def meta():
+async def meta(request: Request):
     _flag_check(config.ENABLE_META_ENDPOINT, "ENABLE_META_ENDPOINT")
-    return MetaResponse(**get_meta(), source=get_source())
+    _team_id, playbook_file = resolve_team_and_playbook(request)
+    return MetaResponse(**get_meta_for_playbook_file(playbook_file), source=get_source())
 
 
 @router.post("/chat", response_model=ChatResponse)
-async def chat(req: ChatRequest):
+async def chat(req: ChatRequest, request: Request):
     _flag_check(config.ENABLE_CHAT, "ENABLE_CHAT")
     _maintenance_check()
-    node = get_node(req.node_id)
+    _team_id, playbook_file = resolve_team_and_playbook(request)
+    node = get_node_for_playbook_file(req.node_id, playbook_file)
     if node is None:
-        raise HTTPException(status_code=404, detail=f"Node '{req.node_id}' not found.")
+        raise HTTPException(status_code=404, detail=f"Node '{req.node_id}' not found in selected playbook.")
     return ChatResponse(
         id=node["id"],
         message=node["message"],

@@ -1,0 +1,8 @@
+# Copy to terraform.tfvars and adjust.
+
+# Windows Docker Desktop (uncomment if Terraform cannot connect to Docker):
+# docker_host = "npipe:////./pipe/docker_engine"
+
+# Optional port overrides:
+# backend_port  = 8001
+# frontend_port = 80
