@@ -85,17 +85,42 @@ jobs:
     defaults:
       run:
         working-directory: .
+    env:
+      AD_BIND_USER: ${{ secrets.AD_BIND_USER }}
+      AD_BIND_PASSWORD: ${{ secrets.AD_BIND_PASSWORD }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Create .env file from GitHub Secrets
+        run: |
+          @"
+          AD_SERVER=$env:AD_SERVER
+          AD_BASE_DN=$env:AD_BASE_DN
+          VITE_API_URL=http://localhost:8001/api
+          "@ | Out-File -FilePath .env -Encoding UTF8
+          Write-Output "✅ .env created from secrets"
+
+      - name: Validate .env
+        run: |
+          if (-Not (Test-Path .env)) { Write-Output "ERROR: .env failed"; exit 1 }
+          Write-Output "✅ .env validated"
+
       - name: Deploy with Docker Compose
         run: |
-          try { docker-compose down } catch { Write-Output 'No containers to stop.' }
+          docker-compose down
           docker-compose up --build -d
+          Write-Output "✅ Docker Compose started"
 
-      - name: Notify success
-        run: Write-Output 'Local deployment with Docker Compose completed!'
+      - name: Verify services
+        run: |
+          Start-Sleep -Seconds 10
+          docker-compose ps
+
+      - name: Cleanup .env
+        if: always()
+        run: |
+          if (Test-Path .env) { Remove-Item .env -Force; Write-Output "✅ .env cleaned up" }
 
   summary:
     name: Workflow Summary
