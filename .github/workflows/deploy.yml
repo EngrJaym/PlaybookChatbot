@@ -43,7 +43,7 @@ jobs:
 
       - name: Run backend tests
         run: |
-          echo 'No backend tests defined. Skipping test step.' || true
+          Write-Output 'No backend tests defined. Skipping test step.'
 
   build-frontend:
     name: Build & Test Frontend
@@ -72,13 +72,15 @@ jobs:
         run: npm ci
 
       - name: Lint frontend
-        run: npm run lint || echo 'No lint script defined.'
+        run: |
+          try { npm run lint } catch { Write-Output 'No lint script defined.' }
 
       - name: Build frontend
         run: npm run build
 
       - name: Run frontend tests
-        run: npm test || echo 'No frontend tests defined.'
+        run: |
+          try { npm test } catch { Write-Output 'No frontend tests defined.' }
 
   deploy:
     name: Deploy Locally with Docker Compose
@@ -93,11 +95,11 @@ jobs:
 
       - name: Deploy with Docker Compose
         run: |
-          docker-compose down || echo "No containers to stop."
+          try { docker-compose down } catch { Write-Output 'No containers to stop.' }
           docker-compose up --build -d
 
       - name: Notify success
-        run: echo "Local deployment with Docker Compose completed!"
+        run: Write-Output 'Local deployment with Docker Compose completed!'
 
   summary:
     name: Workflow Summary
@@ -105,5 +107,4 @@ jobs:
     runs-on: self-hosted
     steps:
       - name: Print summary
-        run: |
-          echo "CI/CD workflow finished. Check previous job logs for details."
+        run: Write-Output 'CI/CD workflow finished. Check previous job logs for details.'
