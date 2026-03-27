@@ -86,8 +86,8 @@ jobs:
       run:
         working-directory: .
     env:
-      AD_BIND_USER: ${{ secrets.AD_BIND_USER }}
-      AD_BIND_PASSWORD: ${{ secrets.AD_BIND_PASSWORD }}
+      AD_SERVER: ${{ secrets.AD_SERVER }}
+      AD_BASE_DN: ${{ secrets.AD_BASE_DN }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -95,9 +95,21 @@ jobs:
       - name: Create .env file from GitHub Secrets
         run: |
           @"
+          APP_ENV=development
+          LOG_LEVEL=INFO
+          DATA_DIR=
+          ENABLE_CHAT=true
+          ENABLE_RELOAD=true
+          ENABLE_DEBUG_ENDPOINTS=false
+          ENABLE_META_ENDPOINT=true
+          ENABLE_ACCESS_CONTROL=true
+          MAINTENANCE_MODE=false
+          MAINTENANCE_MESSAGE=The playbook is currently under maintenance. Please try again shortly.
           AD_SERVER=$env:AD_SERVER
           AD_BASE_DN=$env:AD_BASE_DN
           VITE_API_URL=http://localhost:8001/api
+          AD_BIND_USER=
+          AD_BIND_PASSWORD=
           "@ | Out-File -FilePath .env -Encoding UTF8
           Write-Output "✅ .env created from secrets"
 
