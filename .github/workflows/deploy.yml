@@ -1,0 +1,108 @@
+name: Test GitHub Actions Workflow
+
+# Trigger this workflow on push to main branch
+on:
+  push:
+    branches:
+      - feature/active_directory
+  # Also allow manual trigger
+  workflow_dispatch:
+
+jobs:
+  # Job 1: Test basic setup
+  test-setup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Display environment info
+        run: |
+          echo "=== GitHub Actions Test ==="
+          echo "Repository: ${{ github.repository }}"
+          echo "Branch: ${{ github.ref }}"
+          echo "Commit: ${{ github.sha }}"
+          echo "Actor: ${{ github.actor }}"
+          echo "==========================="
+
+      - name: Check system information
+        run: |
+          echo "OS info:"
+          uname -a
+          echo "Current directory:"
+          pwd
+          echo "Directory contents:"
+          ls -la
+
+  # Job 2: Test Python (for backend)
+  test-python:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.10', '3.11']
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Display Python version
+        run: |
+          python --version
+          pip --version
+
+  # Job 3: Test Node.js (for frontend)
+  test-node:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: ['18.x', '20.x']
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Display Node.js version
+        run: |
+          node --version
+          npm --version
+
+  # Job 4: Lint and basic checks
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check file structure
+        run: |
+          echo "Checking for key project files..."
+          [ -f backend/requirements.txt ] && echo "✓ Backend requirements found" || echo "✗ Backend requirements missing"
+          [ -f frontend/package.json ] && echo "✓ Frontend package.json found" || echo "✗ Frontend package.json missing"
+          [ -f docker-compose.yml ] && echo "✓ Docker Compose found" || echo "✗ Docker Compose missing"
+
+      - name: Validate YAML files
+        run: |
+          echo "Validating docker-compose.yml..."
+          # Basic YAML syntax check
+          python -c "import yaml; yaml.safe_load(open('docker-compose.yml'))" && echo "✓ Valid YAML" || echo "✗ Invalid YAML"
+
+  # Summary job that depends on all others
+  summary:
+    needs: [test-setup, test-python, test-node, lint]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Workflow completed
+        run: |
+          echo "=== GitHub Actions Test Workflow Completed ==="
+          echo "All test jobs have been executed!"
+          echo "Check the logs above for detailed results."
+          echo "=============================================="

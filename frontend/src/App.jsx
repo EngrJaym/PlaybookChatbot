@@ -11,8 +11,8 @@ function App() {
   const userSelectPrevRef = useRef("");
   const rafRef = useRef(null);
   const latestPosRef = useRef(null);
-  const { messages, buttons, loading, started, meta, startChat, selectOption } =
-    useChat();
+  const { messages, buttons, loading, started, meta, startChat, selectOption,
+          accessState, adUsername } = useChat();
 
   const toggleChat = () => {
     setIsOpen((prev) => {
@@ -126,6 +126,8 @@ function App() {
           onDragHandlePointerDown={onDragHandlePointerDown}
           containerStyle={containerStyle}
           isDragging={isDragging}
+          accessState={accessState}
+          adUsername={adUsername}
         />
       )}
       <ChatButton isOpen={isOpen} onClick={toggleChat} />

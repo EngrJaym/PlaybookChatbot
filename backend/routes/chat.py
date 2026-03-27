@@ -116,6 +116,48 @@ async def whoami(req: WhoamiRequest):
     }
 
 
+@router.get("/whoami/me")
+async def whoami_me():
+    """
+    Auto-detect the Windows username from the server's environment (os.getenv USERNAME).
+    Works because the backend runs on the same machine as the browser.
+    Returns the same shape as POST /whoami.
+    """
+    import os
+    sam = (os.getenv("USERNAME") or os.getenv("USER") or "").strip().lower()
+    if not sam:
+        raise HTTPException(status_code=400, detail="Could not determine Windows username from server environment.")
+
+    ad_result = lookup_ad_groups(sam)
+
+    if not config.ENABLE_ACCESS_CONTROL:
+        return {
+            "username":        sam,
+            "groups":          ad_result["groups"],
+            "team":            "all",
+            "playbooks":       [],
+            "playbook_titles": {},
+            "ad_error":        ad_result.get("error"),
+        }
+
+    access = resolve_groups(sam, ad_result["groups"])
+    if not access["valid"]:
+        raise HTTPException(
+            status_code=403,
+            detail=f"'{sam}' is not in any authorised AD group. Contact your team lead.",
+        )
+
+    titles = get_playbook_titles(access["playbooks"])
+    return {
+        "username":        access["username"],
+        "groups":          ad_result["groups"],
+        "team":            access["team"],
+        "playbooks":       access["playbooks"],
+        "playbook_titles": titles,
+        "ad_error":        ad_result.get("error"),
+    }
+
+
 @router.get("/meta", response_model=MetaResponse)
 async def meta():
     _flag_check(config.ENABLE_META_ENDPOINT, "ENABLE_META_ENDPOINT")
@@ -239,10 +281,9 @@ async def reload_playbook():
         reload_rules()
         source = reload()
         return {
-            "status":           "ok",
-            "source":           source,
-            "node_count":       len(get_all_node_ids()),
-            "data_source_mode": config.DATA_SOURCE,
+            "status":     "ok",
+            "source":     source,
+            "node_count": len(get_all_node_ids()),
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -268,3 +309,24 @@ async def nodes():
 @router.get("/playbooks")
 async def playbooks():
     return {"active": get_active_playbook(), "playbooks": list_playbooks()}
+
+
+class DebugAdRequest(BaseModel):
+    username: str
+
+@router.post("/debug/ad-lookup")
+async def debug_ad_lookup(req: DebugAdRequest):
+    """Debug endpoint: look up AD groups for a username and check access rules."""
+    _flag_check(config.ENABLE_DEBUG_ENDPOINTS, "ENABLE_DEBUG_ENDPOINTS")
+    ad_result = lookup_ad_groups(req.username.strip().lower())
+    access    = resolve_groups(req.username, ad_result["groups"])
+    return {
+        "username":     req.username.strip().lower(),
+        "ad_groups":    ad_result["groups"],
+        "ad_error":     ad_result.get("error"),
+        "access_valid": access["valid"],
+        "team":         access["team"],
+        "playbooks":    access["playbooks"],
+    }
+
+

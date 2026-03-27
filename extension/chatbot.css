@@ -593,34 +593,33 @@ ol.nds-msg-list { padding-left: 24px; }
   }
 }
 
-.nds-login-form {
-  display: flex;
-  flex-direction: column;
+
+/* ── Access Denied screen ─────────────────────────────────── */
+
+.nds-chat-window__welcome--denied {
   gap: 10px;
-  width: 100%;
-  margin-top: 8px;
 }
 
-.nds-login-input {
-  width: 100%;
-  padding: 10px 14px;
-  border: 1.5px solid var(--nds-line);
-  border-radius: 10px;
-  font-size: 14px;
-  font-family: inherit;
-  color: var(--nds-text);
-  background: var(--nds-surface);
-  outline: none;
-  transition: border-color 0.2s;
-}
-
-.nds-login-input:focus {
-  border-color: var(--nds-brand);
-}
-
-.nds-login-error {
-  font-size: 12px;
+.nds-chat-window__welcome-icon--lock svg {
   color: #dc2626;
-  text-align: center;
-  margin: 0;
 }
+
+.nds-denied-title {
+  color: #dc2626;
+  font-size: 1.1em;
+  font-weight: 700;
+}
+
+.nds-denied-divider {
+  width: 48px;
+  height: 2px;
+  background: var(--nds-line);
+  border-radius: 2px;
+  margin: 4px auto;
+}
+
+.nds-denied-hint {
+  font-size: 0.82em;
+  opacity: 0.65;
+}
+

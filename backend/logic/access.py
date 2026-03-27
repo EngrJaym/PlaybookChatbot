@@ -41,11 +41,23 @@ def resolve_groups(username: str, groups: list[str]) -> dict:
         return {"valid": False, "username": "", "team": None, "playbooks": []}
 
     groups_lower = [g.strip().lower() for g in (groups or [])]
+    logger.debug(
+        "resolve_groups: user='%s' groups_received=%s",
+        sam, groups_lower,
+    )
 
     for team in _rules.get("teams", []):
         team_groups = [g.strip().lower() for g in team.get("ad_groups", [])]
+        logger.debug(
+            "resolve_groups: checking team='%s' against ad_groups=%s",
+            team.get("team"), team_groups,
+        )
         for tg in team_groups:
             if tg in groups_lower:
+                logger.info(
+                    "resolve_groups: GRANTED user='%s' team='%s' matched='%s'",
+                    sam, team["team"], tg,
+                )
                 return {
                     "valid":     True,
                     "username":  sam,
@@ -56,6 +68,10 @@ def resolve_groups(username: str, groups: list[str]) -> dict:
     if _rules.get("defaults", {}).get("allow_all_if_no_rule", False):
         return {"valid": True, "username": sam, "team": "default", "playbooks": []}
 
+    logger.warning(
+        "resolve_groups: DENIED user='%s' — no team matched. groups_received=%s",
+        sam, groups_lower,
+    )
     return {"valid": False, "username": sam, "team": None, "playbooks": []}
 
 

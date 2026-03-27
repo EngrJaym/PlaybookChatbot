@@ -11,6 +11,7 @@ services:
       - .env
     environment:
       DATA_DIR: /data
+      USERNAME: ${USERNAME}
     volumes:
       - ./backend/credentials:/app/credentials:ro
       - ./backend/access.json:/app/access.json:ro

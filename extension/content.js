@@ -27,10 +27,7 @@
 
   function getSamFromChrome() {
     return new Promise((resolve) => {
-      if (!chrome.identity || !chrome.identity.getProfileUserInfo) {
-        resolve(null);
-        return;
-      }
+      if (!chrome.identity || !chrome.identity.getProfileUserInfo) { resolve(null); return; }
       chrome.identity.getProfileUserInfo({ accountStatus: "ANY" }, (info) => {
         if (chrome.runtime.lastError || !info || !info.email) { resolve(null); return; }
         const sam = info.email.split("@")[0].trim().toLowerCase();
@@ -63,13 +60,11 @@
   let meta           = null;
   let adUsername     = null;
   let adGroups       = [];
-  let accessState    = "checking";
+  let accessState    = "checking"; // checking | allowed | not_registered | error
   let acEnabled      = true;
   let userPlaybooks  = [];
   let playbookTitles = {};
   let activePlaybook = null;
-  let loginError     = "";
-  let loginInput     = "";
 
   const ICON_ROBOT     = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v3"/><circle cx="12" cy="6" r="1.2" fill="none"/><path d="M9 5.6h6"/><path d="M8.4 6.4H7.3A3.3 3.3 0 0 0 4 9.7V15a5 5 0 0 0 5 5h6a5 5 0 0 0 5-5V9.7a3.3 3.3 0 0 0-3.3-3.3H15.6"/><path d="M9.2 13h.01"/><path d="M14.8 13h.01"/><path d="M9.3 16.1c.9.9 1.9 1.4 2.7 1.4s1.8-.5 2.7-1.4"/></svg>`;
   const ICON_X         = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>`;
@@ -83,7 +78,7 @@
   document.body.appendChild(root);
   const shadow = root.attachShadow({ mode: "open" });
   const styleLink = document.createElement("link");
-  styleLink.rel = "stylesheet";
+  styleLink.rel  = "stylesheet";
   styleLink.href = chrome.runtime.getURL("chatbot.css");
   shadow.appendChild(styleLink);
   const container = document.createElement("div");
@@ -102,8 +97,30 @@
     accessState = "checking";
     render();
 
-    const sam = await getSamFromChrome();
+    // 1. Ask the backend to identify the user from the server's Windows USERNAME env var
+    //    (backend runs on same machine — most reliable, zero user input needed)
+    try {
+      const { status, data } = await apiFetch("/whoami/me");
+      if (status === 200) {
+        adUsername     = data.username;
+        adGroups       = data.groups || [];
+        userPlaybooks  = data.playbooks || [];
+        playbookTitles = data.playbook_titles || {};
+        await saveAdUser(adUsername, adGroups, data.team, userPlaybooks, playbookTitles);
+        accessState = "allowed";
+        autoStart();
+        return;
+      } else if (status === 403) {
+        adUsername  = data?.detail?.split("'")[1] || null;
+        accessState = "not_registered";
+        render();
+        return;
+      }
+      // non-200/403 — fall through to next method
+    } catch {}
 
+    // 2. Fall back to Chrome identity email prefix
+    const sam = await getSamFromChrome();
     if (sam) {
       try {
         const { status, data } = await apiFetch("/whoami", {
@@ -121,94 +138,37 @@
           return;
         } else if (status === 403) {
           adUsername  = sam;
-          adGroups    = [];
           accessState = "not_registered";
-        } else {
-          const stored = await getStoredAdUser();
-          if (stored.username) {
-            adUsername     = stored.username;
-            adGroups       = stored.groups || [];
-            userPlaybooks  = stored.playbooks || [];
-            playbookTitles = stored.playbook_titles || {};
-            accessState    = "allowed";
-            autoStart();
-            return;
-          }
-          accessState = "needs_login";
-        }
-      } catch {
-        const stored = await getStoredAdUser();
-        if (stored.username) {
-          adUsername     = stored.username;
-          adGroups       = stored.groups || [];
-          userPlaybooks  = stored.playbooks || [];
-          playbookTitles = stored.playbook_titles || {};
-          accessState    = "allowed";
-          autoStart();
+          render();
           return;
         }
-        accessState = "needs_login";
-      }
-    } else {
-      const stored = await getStoredAdUser();
-      if (stored.username) {
-        adUsername     = stored.username;
-        adGroups       = stored.groups || [];
-        userPlaybooks  = stored.playbooks || [];
-        playbookTitles = stored.playbook_titles || {};
-        accessState    = "allowed";
-        autoStart();
-        return;
-      }
-      accessState = "needs_login";
+      } catch {}
     }
 
+    // 3. Try cached/stored user from a previous successful login
+    const stored = await getStoredAdUser();
+    if (stored.username) {
+      adUsername     = stored.username;
+      adGroups       = stored.groups || [];
+      userPlaybooks  = stored.playbooks || [];
+      playbookTitles = stored.playbook_titles || {};
+      accessState    = "allowed";
+      autoStart();
+      return;
+    }
+
+    // 4. All methods failed — show error (no input form)
+    accessState = "error";
     render();
   }
 
   function autoStart() {
     messages = [];
     buttons  = [];
-    if (acEnabled && userPlaybooks.length > 1 && !activePlaybook) {
-      render();
-      return;
-    }
+    activePlaybook = null;
+    if (acEnabled && userPlaybooks.length > 1) { render(); return; }
     if (acEnabled && userPlaybooks.length === 1) activePlaybook = userPlaybooks[0];
-    render();
-    fetchNode("home");
-  }
-
-  async function handleManualLogin(username) {
-    if (!username || !username.trim()) return;
-    loginError  = "";
-    accessState = "checking";
-    render();
-    try {
-      const { status, data } = await apiFetch("/whoami", {
-        method: "POST",
-        body: JSON.stringify({ username: username.trim().toLowerCase() }),
-      });
-      if (status === 200) {
-        adUsername     = data.username;
-        adGroups       = data.groups || [];
-        userPlaybooks  = data.playbooks || [];
-        playbookTitles = data.playbook_titles || {};
-        await saveAdUser(adUsername, adGroups, data.team, userPlaybooks, playbookTitles);
-        accessState = "allowed";
-        loginError  = "";
-        autoStart();
-        return;
-      } else if (status === 403) {
-        adUsername  = username.trim().toLowerCase();
-        accessState = "not_registered";
-      } else {
-        accessState = "needs_login";
-        loginError  = "Verification failed. Please try again.";
-      }
-    } catch {
-      accessState = "needs_login";
-      loginError  = "Could not reach the server. Make sure the backend is running on port 8001.";
-    }
+    if (isOpen) fetchNode("home");
     render();
   }
 
@@ -297,30 +257,10 @@
   function toggleChat() {
     isOpen = !isOpen;
     if (isOpen && accessState === "allowed" && messages.length === 0) {
-      if (acEnabled && userPlaybooks.length > 1 && !activePlaybook) {
-        render();
-        return;
-      }
+      if (acEnabled && userPlaybooks.length > 1 && !activePlaybook) { render(); return; }
       if (acEnabled && userPlaybooks.length === 1 && !activePlaybook) activePlaybook = userPlaybooks[0];
-      if (activePlaybook || !acEnabled) {
-        render();
-        fetchNode("home");
-        return;
-      }
+      if (activePlaybook || !acEnabled) { render(); fetchNode("home"); return; }
     }
-    render();
-  }
-
-  function autoStart() {
-    messages = [];
-    buttons  = [];
-    activePlaybook = null;
-    if (acEnabled && userPlaybooks.length > 1) {
-      render();
-      return;
-    }
-    if (acEnabled && userPlaybooks.length === 1) activePlaybook = userPlaybooks[0];
-    if (isOpen) fetchNode("home");
     render();
   }
 
@@ -376,27 +316,30 @@
           <p class="nds-chat-window__desc">Verifying your access\u2026</p>
         </div>`;
 
-      } else if (accessState === "needs_login") {
-        const prefill = loginInput || (adUsername ? esc(adUsername) : "");
-        html += `<div class="nds-chat-window__welcome">
-          <div class="nds-chat-window__welcome-icon">${ICON_LOCK}</div>
-          <h3>Verification Required</h3>
-          <p class="nds-chat-window__desc">Enter your Windows login username to verify access.</p>
-          <div class="nds-login-form">
-            <input class="nds-login-input" data-input="username" type="text"
-              placeholder="e.g. nds-25217" value="${prefill}"
-              autocomplete="username" spellcheck="false" />
-            ${loginError ? `<p class="nds-login-error">${esc(loginError)}</p>` : ""}
-            <button class="nds-chat-window__start-btn" data-action="submit-login">Verify &amp; Continue</button>
-          </div>
+      } else if (accessState === "not_registered") {
+        html += `<div class="nds-chat-window__welcome nds-chat-window__welcome--denied">
+          <div class="nds-chat-window__welcome-icon nds-chat-window__welcome-icon--lock">${ICON_LOCK}</div>
+          <h3 class="nds-denied-title">Access Restricted</h3>
+          <p class="nds-chat-window__desc">
+            <strong>${esc(adUsername || "Your account")}</strong> is not assigned to any authorised group.
+          </p>
+          <div class="nds-denied-divider"></div>
+          <p class="nds-chat-window__desc nds-denied-hint">
+            Please contact your team lead or IT to request access.
+          </p>
         </div>`;
 
-      } else if (accessState === "not_registered") {
-        html += `<div class="nds-chat-window__welcome">
-          <div class="nds-chat-window__welcome-icon">${ICON_LOCK}</div>
-          <h3>Access Not Granted</h3>
-          <p class="nds-chat-window__desc"><strong>${esc(adUsername || "Your account")}</strong> is not in any authorised group.</p>
-          <p class="nds-chat-window__desc" style="font-size:0.8em;opacity:0.6;">Contact your team lead to get access.</p>
+      } else if (accessState === "error") {
+        html += `<div class="nds-chat-window__welcome nds-chat-window__welcome--denied">
+          <div class="nds-chat-window__welcome-icon">${ICON_ALERT}</div>
+          <h3 class="nds-denied-title">Unable to Verify</h3>
+          <p class="nds-chat-window__desc">
+            Your identity could not be verified automatically. Please ensure the backend is running and you are on the corporate network.
+          </p>
+          <div class="nds-denied-divider"></div>
+          <p class="nds-chat-window__desc nds-denied-hint">
+            Contact IT support if this problem persists.
+          </p>
         </div>`;
 
       } else if (acEnabled && userPlaybooks.length > 1 && !activePlaybook) {
@@ -448,18 +391,6 @@
     </button>`;
 
     container.innerHTML = html;
-
-    if (accessState === "needs_login") {
-      const inputEl = shadow.querySelector("[data-input='username']");
-      if (inputEl) {
-        inputEl.focus();
-        inputEl.addEventListener("keydown", (e) => {
-          if (e.key === "Enter") { loginInput = inputEl.value; handleManualLogin(inputEl.value); }
-        });
-        inputEl.addEventListener("input", (e) => { loginInput = e.target.value; });
-      }
-    }
-
     scrollToBottom();
   }
 
@@ -484,12 +415,6 @@
       const idx = parseInt(btn.dataset.index, 10);
       const b   = buttons[idx];
       if (b) selectOption(b.label, b.next);
-    }
-    else if (action === "submit-login") {
-      const inputEl = shadow.querySelector("[data-input='username']");
-      const val     = inputEl ? inputEl.value : loginInput;
-      loginInput    = val;
-      handleManualLogin(val);
     }
   });
 
