@@ -34,10 +34,16 @@ $result.Properties["memberOf"] | ForEach-Object {{ Write-Output $_ }}
     try:
         proc = subprocess.run(
             ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps],
-            capture_output=True, text=True, timeout=15,
+            capture_output=True,
+            text=True,
+            timeout=15,
         )
         if proc.returncode != 0:
-            logger.debug("PowerShell AD fallback: user '%s' not found. stderr: %s", sam, proc.stderr.strip())
+            logger.debug(
+                "PowerShell AD fallback: user '%s' not found. stderr: %s",
+                sam,
+                proc.stderr.strip(),
+            )
             return None
         raw = [line.strip() for line in proc.stdout.splitlines() if line.strip()]
         groups = [_cn_from_dn(dn) for dn in raw]
@@ -50,8 +56,10 @@ $result.Properties["memberOf"] | ForEach-Object {{ Write-Output $_ }}
 
 def _ldap3_search(conn, sam: str) -> list[str] | None:
     """Run the LDAP search on an already-bound connection. Returns group list or None."""
-    from ldap3.core.exceptions import LDAPException
-    search_filter = f"(&(objectCategory=person)(objectClass=user)(sAMAccountName={sam}))"
+
+    search_filter = (
+        f"(&(objectCategory=person)(objectClass=user)(sAMAccountName={sam}))"
+    )
     conn.search(
         config.AD_BASE_DN,
         search_filter,
@@ -76,8 +84,7 @@ def lookup_ad_groups(sam: str) -> dict:
 
     # ── Primary: ldap3 ────────────────────────────────────────────────────────
     try:
-        from ldap3 import Server, Connection, ALL, NTLM, SIMPLE, ANONYMOUS
-        from ldap3.core.exceptions import LDAPException
+        from ldap3 import ALL, ANONYMOUS, NTLM, SIMPLE, Connection, Server
 
         server = Server(config.AD_SERVER, get_info=ALL, connect_timeout=8)
 
@@ -126,7 +133,9 @@ def lookup_ad_groups(sam: str) -> dict:
                     )
                     logger.info("ldap3: NTLM machine-account bind succeeded")
                 except Exception as ntlm_exc:
-                    logger.debug("ldap3: NTLM machine-account bind failed: %s", ntlm_exc)
+                    logger.debug(
+                        "ldap3: NTLM machine-account bind failed: %s", ntlm_exc
+                    )
                     conn = None
                     last_error = str(ntlm_exc)
 
@@ -148,5 +157,7 @@ def lookup_ad_groups(sam: str) -> dict:
         return {"username": sam, "groups": ps_groups, "error": None}
 
     # ── Both methods failed ───────────────────────────────────────────────────
-    logger.error("All AD lookup methods failed for '%s'. Last error: %s", sam, last_error)
+    logger.error(
+        "All AD lookup methods failed for '%s'. Last error: %s", sam, last_error
+    )
     return {"username": sam, "groups": [], "error": last_error}

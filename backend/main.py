@@ -1,6 +1,6 @@
 import logging
-import config
 
+import config
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from routes.chat import router as chat_router
@@ -14,9 +14,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI(
     title="NDS Playbook Chatbot API",
     version="1.1.0",
-    description=(
-        "Button-based chatbot API for the NDS Client Management Playbook."
-    ),
+    description=("Button-based chatbot API for the NDS Client Management Playbook."),
 )
 
 app.add_middleware(
@@ -47,19 +45,20 @@ async def _startup():
 
 @app.get("/")
 async def health():
-    from logic.flow import get_source, get_all_node_ids
+    from logic.flow import get_all_node_ids, get_source
+
     return {
-        "status":           "ok" if not config.MAINTENANCE_MODE else "maintenance",
-        "service":          "NDS Playbook Chatbot API",
-        "app_env":          config.APP_ENV,
-        "playbook_source":  get_source(),
-        "node_count":       len(get_all_node_ids()),
-        "maintenance":      config.MAINTENANCE_MODE,
+        "status": "ok" if not config.MAINTENANCE_MODE else "maintenance",
+        "service": "NDS Playbook Chatbot API",
+        "app_env": config.APP_ENV,
+        "playbook_source": get_source(),
+        "node_count": len(get_all_node_ids()),
+        "maintenance": config.MAINTENANCE_MODE,
         "features": {
-            "chat":             config.ENABLE_CHAT,
-            "reload":           config.ENABLE_RELOAD,
-            "debug_endpoints":  config.ENABLE_DEBUG_ENDPOINTS,
-            "meta_endpoint":    config.ENABLE_META_ENDPOINT,
-            "access_control":   config.ENABLE_ACCESS_CONTROL,
+            "chat": config.ENABLE_CHAT,
+            "reload": config.ENABLE_RELOAD,
+            "debug_endpoints": config.ENABLE_DEBUG_ENDPOINTS,
+            "meta_endpoint": config.ENABLE_META_ENDPOINT,
+            "access_control": config.ENABLE_ACCESS_CONTROL,
         },
     }

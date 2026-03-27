@@ -3,12 +3,20 @@ Smoke test — NDS Playbook Flow Engine (OAuth 2.0 / Service Account)
 Run from the backend/ directory:
     python test_flow.py
 """
-import sys, os
+
+import os
+import sys
+
 sys.path.insert(0, os.path.dirname(__file__))
 
 from logic.flow import (
-    get_all_node_ids, get_meta, get_node, get_source,
-    _normalize, SA_FILE, _collect_doc_entries,
+    SA_FILE,
+    _collect_doc_entries,
+    _normalize,
+    get_all_node_ids,
+    get_meta,
+    get_node,
+    get_source,
 )
 
 SEP = "=" * 60
@@ -19,7 +27,7 @@ print(SEP)
 
 # ── 1. Meta ───────────────────────────────────────────────────
 meta = get_meta()
-print(f"\n[META]")
+print("\n[META]")
 print(f"  Title   : {meta.get('title')}")
 print(f"  Company : {meta.get('company')}")
 print(f"  Version : {meta.get('version')}")
@@ -54,7 +62,7 @@ for b in home["buttons"]:
 
 # ── 5. Sample answers ─────────────────────────────────────────
 samples = ["map-tmc", "pricing-fuel", "psu-step1", "region-fl", "addons-tmc"]
-print(f"\n[SAMPLE ANSWERS]")
+print("\n[SAMPLE ANSWERS]")
 for nid in samples:
     n = get_node(nid)
     if n:
@@ -63,16 +71,18 @@ for nid in samples:
 
 # ── 6. Nodes WITH answers ─────────────────────────────────────
 with_answers = [nid for nid in ids if get_node(nid).get("answer")]
-without      = [nid for nid in ids if not get_node(nid).get("answer")]
-print(f"\n[ANSWER COVERAGE]")
+without = [nid for nid in ids if not get_node(nid).get("answer")]
+print("\n[ANSWER COVERAGE]")
 print(f"  Nodes with answers  : {len(with_answers)}")
 print(f"  Nodes without answer: {len(without)}")
 if without:
-    print(f"  Nav-only nodes (expected): {without[:10]}{'...' if len(without) > 10 else ''}")
+    print(
+        f"  Nav-only nodes (expected): {without[:10]}{'...' if len(without) > 10 else ''}"
+    )
 
 # ── 7. OAuth / Google Docs status ────────────────────────────
 doc_entries = _collect_doc_entries()
-print(f"\n[GOOGLE DOCS / OAUTH 2.0 STATUS]")
+print("\n[GOOGLE DOCS / OAUTH 2.0 STATUS]")
 print(f"  Service account file : {SA_FILE}")
 print(f"  File exists          : {SA_FILE.exists()}")
 print(f"  Registered docs      : {len(doc_entries)}")
@@ -84,19 +94,21 @@ if not SA_FILE.exists():
     print("\n  ⚠  Place your service_account.json at the path above.")
     print("     Then share the Google Doc with the service account email.")
 if not doc_entries:
-    print("\n  ⚠  Set GOOGLE_DOC_ID_MAIN in .env to enable live content from Google Docs.")
+    print(
+        "\n  ⚠  Set GOOGLE_DOC_ID_MAIN in .env to enable live content from Google Docs."
+    )
 
 # ── 8. Normalise helper ───────────────────────────────────────
-print(f"\n[_normalize TESTS]")
+print("\n[_normalize TESTS]")
 cases = [
-    ("TMC Mapping Rules",           "tmc mapping rules"),
-    ("Email Account Setup",         "email account setup"),
-    ("Fuel Surcharge — Computation","fuel surcharge  computation"),
-    ("Ped & Bike (P&B)",            "ped  bike p b"),
+    ("TMC Mapping Rules", "tmc mapping rules"),
+    ("Email Account Setup", "email account setup"),
+    ("Fuel Surcharge — Computation", "fuel surcharge  computation"),
+    ("Ped & Bike (P&B)", "ped  bike p b"),
 ]
 for raw, expected in cases:
-    got    = _normalize(raw)
-    ok     = "✓" if got == expected else f"✗  expected '{expected}'"
+    got = _normalize(raw)
+    ok = "✓" if got == expected else f"✗  expected '{expected}'"
     print(f"  '{raw}' → '{got}'  {ok}")
 
 print(f"\n{SEP}")

@@ -4,8 +4,6 @@ import json
 import logging
 from pathlib import Path
 
-import config
-
 _BACKEND_DIR = Path(__file__).resolve().parent.parent
 _ACCESS_FILE = _BACKEND_DIR / "access.json"
 
@@ -24,7 +22,8 @@ def _load() -> None:
     total_groups = sum(len(t.get("ad_groups", [])) for t in _rules.get("teams", []))
     logger.info(
         "Access rules loaded: %d teams, %d AD groups",
-        len(_rules.get("teams", [])), total_groups,
+        len(_rules.get("teams", [])),
+        total_groups,
     )
 
 
@@ -43,25 +42,29 @@ def resolve_groups(username: str, groups: list[str]) -> dict:
     groups_lower = [g.strip().lower() for g in (groups or [])]
     logger.debug(
         "resolve_groups: user='%s' groups_received=%s",
-        sam, groups_lower,
+        sam,
+        groups_lower,
     )
 
     for team in _rules.get("teams", []):
         team_groups = [g.strip().lower() for g in team.get("ad_groups", [])]
         logger.debug(
             "resolve_groups: checking team='%s' against ad_groups=%s",
-            team.get("team"), team_groups,
+            team.get("team"),
+            team_groups,
         )
         for tg in team_groups:
             if tg in groups_lower:
                 logger.info(
                     "resolve_groups: GRANTED user='%s' team='%s' matched='%s'",
-                    sam, team["team"], tg,
+                    sam,
+                    team["team"],
+                    tg,
                 )
                 return {
-                    "valid":     True,
-                    "username":  sam,
-                    "team":      team["team"],
+                    "valid": True,
+                    "username": sam,
+                    "team": team["team"],
                     "playbooks": list(team.get("playbooks", [])),
                 }
 
@@ -70,8 +73,7 @@ def resolve_groups(username: str, groups: list[str]) -> dict:
 
     logger.warning(
         "resolve_groups: DENIED user='%s' — no team matched. groups_received=%s",
-        sam, groups_lower,
+        sam,
+        groups_lower,
     )
     return {"valid": False, "username": sam, "team": None, "playbooks": []}
-
-

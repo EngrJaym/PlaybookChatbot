@@ -1,17 +1,22 @@
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
-
 import config
-from logic.flow import (
-    get_node, get_meta, get_all_node_ids,
-    get_source, reload,
-    list_playbooks, get_active_playbook,
-    _resolve_playbook, _load_playbook_file,
-    _CITATIONS, _INDEX,
-    get_playbook_titles,
-)
-from logic.access import resolve_groups, reload_rules
+from fastapi import APIRouter, HTTPException
+from logic.access import reload_rules, resolve_groups
 from logic.ad import lookup_ad_groups
+from logic.flow import (
+    _CITATIONS,
+    _INDEX,
+    _load_playbook_file,
+    _resolve_playbook,
+    get_active_playbook,
+    get_all_node_ids,
+    get_meta,
+    get_node,
+    get_playbook_titles,
+    get_source,
+    list_playbooks,
+    reload,
+)
+from pydantic import BaseModel
 
 router = APIRouter(prefix="/api", tags=["chat"])
 
@@ -33,18 +38,22 @@ class ADLoginRequest(BaseModel):
     username: str
     groups: list[str] = []
 
+
 class WhoamiRequest(BaseModel):
     username: str
 
+
 class ChatRequest(BaseModel):
-    node_id:  str = "home"
+    node_id: str = "home"
     username: str | None = None
-    groups:   list[str] = []
+    groups: list[str] = []
     playbook: str | None = None
+
 
 class ButtonOut(BaseModel):
     label: str
     next: str
+
 
 class ChatResponse(BaseModel):
     id: str
@@ -53,6 +62,7 @@ class ChatResponse(BaseModel):
     buttons: list[ButtonOut]
     type: str | None = None
     citation: dict | None = None
+
 
 class MetaResponse(BaseModel):
     title: str
@@ -64,7 +74,12 @@ class MetaResponse(BaseModel):
 @router.post("/ad-login")
 async def ad_login(req: ADLoginRequest):
     if not config.ENABLE_ACCESS_CONTROL:
-        return {"username": req.username.strip().lower(), "team": "all", "playbooks": [], "playbook_titles": {}}
+        return {
+            "username": req.username.strip().lower(),
+            "team": "all",
+            "playbooks": [],
+            "playbook_titles": {},
+        }
     result = resolve_groups(req.username, req.groups)
     if not result["valid"]:
         raise HTTPException(
@@ -73,9 +88,9 @@ async def ad_login(req: ADLoginRequest):
         )
     titles = get_playbook_titles(result["playbooks"])
     return {
-        "username":        result["username"],
-        "team":            result["team"],
-        "playbooks":       result["playbooks"],
+        "username": result["username"],
+        "team": result["team"],
+        "playbooks": result["playbooks"],
         "playbook_titles": titles,
     }
 
@@ -90,12 +105,12 @@ async def whoami(req: WhoamiRequest):
 
     if not config.ENABLE_ACCESS_CONTROL:
         return {
-            "username":        sam,
-            "groups":          ad_result["groups"],
-            "team":            "all",
-            "playbooks":       [],
+            "username": sam,
+            "groups": ad_result["groups"],
+            "team": "all",
+            "playbooks": [],
             "playbook_titles": {},
-            "ad_error":        ad_result.get("error"),
+            "ad_error": ad_result.get("error"),
         }
 
     access = resolve_groups(sam, ad_result["groups"])
@@ -107,12 +122,12 @@ async def whoami(req: WhoamiRequest):
 
     titles = get_playbook_titles(access["playbooks"])
     return {
-        "username":        access["username"],
-        "groups":          ad_result["groups"],
-        "team":            access["team"],
-        "playbooks":       access["playbooks"],
+        "username": access["username"],
+        "groups": ad_result["groups"],
+        "team": access["team"],
+        "playbooks": access["playbooks"],
         "playbook_titles": titles,
-        "ad_error":        ad_result.get("error"),
+        "ad_error": ad_result.get("error"),
     }
 
 
@@ -124,20 +139,24 @@ async def whoami_me():
     Returns the same shape as POST /whoami.
     """
     import os
+
     sam = (os.getenv("USERNAME") or os.getenv("USER") or "").strip().lower()
     if not sam:
-        raise HTTPException(status_code=400, detail="Could not determine Windows username from server environment.")
+        raise HTTPException(
+            status_code=400,
+            detail="Could not determine Windows username from server environment.",
+        )
 
     ad_result = lookup_ad_groups(sam)
 
     if not config.ENABLE_ACCESS_CONTROL:
         return {
-            "username":        sam,
-            "groups":          ad_result["groups"],
-            "team":            "all",
-            "playbooks":       [],
+            "username": sam,
+            "groups": ad_result["groups"],
+            "team": "all",
+            "playbooks": [],
             "playbook_titles": {},
-            "ad_error":        ad_result.get("error"),
+            "ad_error": ad_result.get("error"),
         }
 
     access = resolve_groups(sam, ad_result["groups"])
@@ -149,12 +168,12 @@ async def whoami_me():
 
     titles = get_playbook_titles(access["playbooks"])
     return {
-        "username":        access["username"],
-        "groups":          ad_result["groups"],
-        "team":            access["team"],
-        "playbooks":       access["playbooks"],
+        "username": access["username"],
+        "groups": ad_result["groups"],
+        "team": access["team"],
+        "playbooks": access["playbooks"],
         "playbook_titles": titles,
-        "ad_error":        ad_result.get("error"),
+        "ad_error": ad_result.get("error"),
     }
 
 
@@ -172,10 +191,16 @@ async def chat(req: ChatRequest):
     if config.ENABLE_ACCESS_CONTROL and req.username:
         result = resolve_groups(req.username, req.groups)
         if not result["valid"]:
-            raise HTTPException(status_code=403, detail=f"Access denied for '{req.username}'.")
+            raise HTTPException(
+                status_code=403, detail=f"Access denied for '{req.username}'."
+            )
         node = _get_node_filtered(req.node_id, result["playbooks"], req.playbook)
     else:
-        node = _get_node_for_playbook(req.node_id, req.playbook) if req.playbook else get_node(req.node_id)
+        node = (
+            _get_node_for_playbook(req.node_id, req.playbook)
+            if req.playbook
+            else get_node(req.node_id)
+        )
 
     if node is None:
         raise HTTPException(status_code=404, detail=f"Node '{req.node_id}' not found.")
@@ -192,7 +217,12 @@ async def chat(req: ChatRequest):
 
 def _get_node_for_playbook(node_id: str, playbook_file: str) -> dict | None:
     from pathlib import Path
-    data_dir = Path(config.DATA_DIR_ENV) if config.DATA_DIR_ENV else Path(__file__).resolve().parent.parent.parent / "data"
+
+    data_dir = (
+        Path(config.DATA_DIR_ENV)
+        if config.DATA_DIR_ENV
+        else Path(__file__).resolve().parent.parent.parent / "data"
+    )
     path = data_dir / playbook_file
     if not path.exists():
         return get_node(node_id)
@@ -204,18 +234,25 @@ def _get_node_for_playbook(node_id: str, playbook_file: str) -> dict | None:
     if node is None:
         return None
     return {
-        "id":       node["id"],
-        "message":  node["message"],
-        "answer":   node.get("answer"),
-        "buttons":  node.get("buttons", []),
-        "type":     node.get("type"),
+        "id": node["id"],
+        "message": node["message"],
+        "answer": node.get("answer"),
+        "buttons": node.get("buttons", []),
+        "type": node.get("type"),
         "citation": _CITATIONS.get(node_id),
     }
 
 
-def _get_node_filtered(node_id: str, allowed: list[str], playbook_file: str | None = None) -> dict | None:
+def _get_node_filtered(
+    node_id: str, allowed: list[str], playbook_file: str | None = None
+) -> dict | None:
     from pathlib import Path
-    data_dir = Path(config.DATA_DIR_ENV) if config.DATA_DIR_ENV else Path(__file__).resolve().parent.parent.parent / "data"
+
+    data_dir = (
+        Path(config.DATA_DIR_ENV)
+        if config.DATA_DIR_ENV
+        else Path(__file__).resolve().parent.parent.parent / "data"
+    )
 
     targets = []
     if playbook_file and playbook_file in (allowed or []):
@@ -234,13 +271,21 @@ def _get_node_filtered(node_id: str, allowed: list[str], playbook_file: str | No
         node = book["flow"].get(node_id)
         if node is None:
             continue
-        filtered_buttons = [b for b in node.get("buttons", []) if _btn_allowed(b.get("next", ""), allowed)] if allowed else node.get("buttons", [])
+        filtered_buttons = (
+            [
+                b
+                for b in node.get("buttons", [])
+                if _btn_allowed(b.get("next", ""), allowed)
+            ]
+            if allowed
+            else node.get("buttons", [])
+        )
         return {
-            "id":       node["id"],
-            "message":  node["message"],
-            "answer":   node.get("answer"),
-            "buttons":  filtered_buttons,
-            "type":     node.get("type"),
+            "id": node["id"],
+            "message": node["message"],
+            "answer": node.get("answer"),
+            "buttons": filtered_buttons,
+            "type": node.get("type"),
             "citation": _CITATIONS.get(node_id),
         }
 
@@ -256,13 +301,17 @@ def _get_node_filtered(node_id: str, allowed: list[str], playbook_file: str | No
     node = book["flow"].get(node_id)
     if node is None:
         return None
-    filtered_buttons = [b for b in node.get("buttons", []) if _btn_allowed(b.get("next", ""), allowed)] if allowed else node.get("buttons", [])
+    filtered_buttons = (
+        [b for b in node.get("buttons", []) if _btn_allowed(b.get("next", ""), allowed)]
+        if allowed
+        else node.get("buttons", [])
+    )
     return {
-        "id":       node["id"],
-        "message":  node["message"],
-        "answer":   node.get("answer"),
-        "buttons":  filtered_buttons,
-        "type":     node.get("type"),
+        "id": node["id"],
+        "message": node["message"],
+        "answer": node.get("answer"),
+        "buttons": filtered_buttons,
+        "type": node.get("type"),
         "citation": _CITATIONS.get(node_id),
     }
 
@@ -281,8 +330,8 @@ async def reload_playbook():
         reload_rules()
         source = reload()
         return {
-            "status":     "ok",
-            "source":     source,
+            "status": "ok",
+            "source": source,
             "node_count": len(get_all_node_ids()),
         }
     except Exception as e:
@@ -299,10 +348,10 @@ async def flags():
 async def nodes():
     _flag_check(config.ENABLE_DEBUG_ENDPOINTS, "ENABLE_DEBUG_ENDPOINTS")
     return {
-        "source":           get_source(),
-        "active_playbook":  get_active_playbook(),
-        "node_count":       len(get_all_node_ids()),
-        "node_ids":         get_all_node_ids(),
+        "source": get_source(),
+        "active_playbook": get_active_playbook(),
+        "node_count": len(get_all_node_ids()),
+        "node_ids": get_all_node_ids(),
     }
 
 
@@ -314,19 +363,18 @@ async def playbooks():
 class DebugAdRequest(BaseModel):
     username: str
 
+
 @router.post("/debug/ad-lookup")
 async def debug_ad_lookup(req: DebugAdRequest):
     """Debug endpoint: look up AD groups for a username and check access rules."""
     _flag_check(config.ENABLE_DEBUG_ENDPOINTS, "ENABLE_DEBUG_ENDPOINTS")
     ad_result = lookup_ad_groups(req.username.strip().lower())
-    access    = resolve_groups(req.username, ad_result["groups"])
+    access = resolve_groups(req.username, ad_result["groups"])
     return {
-        "username":     req.username.strip().lower(),
-        "ad_groups":    ad_result["groups"],
-        "ad_error":     ad_result.get("error"),
+        "username": req.username.strip().lower(),
+        "ad_groups": ad_result["groups"],
+        "ad_error": ad_result.get("error"),
         "access_valid": access["valid"],
-        "team":         access["team"],
-        "playbooks":    access["playbooks"],
+        "team": access["team"],
+        "playbooks": access["playbooks"],
     }
-
-

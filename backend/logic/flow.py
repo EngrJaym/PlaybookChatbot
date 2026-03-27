@@ -7,14 +7,14 @@ from pathlib import Path
 from typing import Optional
 
 _BACKEND_DIR = Path(__file__).resolve().parent.parent
-_ROOT_DIR    = _BACKEND_DIR.parent
+_ROOT_DIR = _BACKEND_DIR.parent
 _DATA_DIR_ENV = os.getenv("DATA_DIR", "").strip()
 DATA_DIR: Path = Path(_DATA_DIR_ENV) if _DATA_DIR_ENV else _ROOT_DIR / "data"
 
-_INDEX:     dict[str, Path] = {}
-_CACHE:     dict[Path, dict] = {}
+_INDEX: dict[str, Path] = {}
+_CACHE: dict[Path, dict] = {}
 _CITATIONS: dict[str, dict] = {}
-_SOURCE:    str = "local_file"
+_SOURCE: str = "local_file"
 
 
 logger = logging.getLogger(__name__)
@@ -55,10 +55,10 @@ def _load_playbook_file(path: Path) -> dict:
     for nid, node in flow.items():
         if node.get("answer") is not None:
             _CITATIONS[nid] = {
-                "source":  "local_file",
-                "doc":     path.name,
+                "source": "local_file",
+                "doc": path.name,
                 "heading": node.get("message") or nid,
-                "match":   "json",
+                "match": "json",
             }
     _CACHE[path] = {"flow": flow, "meta": meta}
     logger.info("Loaded '%s' (%d nodes)", path.name, len(flow))
@@ -116,11 +116,11 @@ def get_node(node_id: str) -> Optional[dict]:
     if node is None:
         return None
     return {
-        "id":       node["id"],
-        "message":  node["message"],
-        "answer":   node.get("answer"),
-        "buttons":  node.get("buttons", []),
-        "type":     node.get("type"),
+        "id": node["id"],
+        "message": node["message"],
+        "answer": node.get("answer"),
+        "buttons": node.get("buttons", []),
+        "type": node.get("type"),
         "citation": _CITATIONS.get(node_id),
     }
 
@@ -147,16 +147,20 @@ def list_playbooks() -> list:
                 with open(f, "r", encoding="utf-8") as fh:
                     data = json.load(fh)
                 meta = data.get("meta", {})
-                books.append({
-                    "file":       f.name,
-                    "title":      meta.get("title", f.stem),
-                    "company":    meta.get("company", ""),
-                    "version":    meta.get("version", ""),
-                    "node_count": len(data.get("nodes", [])),
-                    "cached":     f in _CACHE,
-                })
+                books.append(
+                    {
+                        "file": f.name,
+                        "title": meta.get("title", f.stem),
+                        "company": meta.get("company", ""),
+                        "version": meta.get("version", ""),
+                        "node_count": len(data.get("nodes", [])),
+                        "cached": f in _CACHE,
+                    }
+                )
             except Exception:
-                books.append({"file": f.name, "title": f.stem, "node_count": 0, "cached": False})
+                books.append(
+                    {"file": f.name, "title": f.stem, "node_count": 0, "cached": False}
+                )
     return books
 
 
@@ -177,6 +181,7 @@ def get_playbook_titles(filenames: list[str]) -> dict[str, str]:
             except Exception:
                 titles[fname] = path.stem
         else:
-            titles[fname] = fname.replace(".json", "").replace("_", " ").replace("-", " ").title()
+            titles[fname] = (
+                fname.replace(".json", "").replace("_", " ").replace("-", " ").title()
+            )
     return titles
-
