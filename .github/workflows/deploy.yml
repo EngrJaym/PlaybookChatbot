@@ -42,8 +42,7 @@ jobs:
           flake8 .
 
       - name: Run backend tests
-        run: |
-          Write-Output 'No backend tests defined. Skipping test step.'
+        run: Write-Output 'No backend tests defined. Skipping test step.'
 
   build-frontend:
     name: Build & Test Frontend
@@ -75,8 +74,7 @@ jobs:
         run: npm run build
 
       - name: Run frontend tests
-        run: |
-          Write-Output 'No frontend tests defined.'
+        run: Write-Output 'No frontend tests defined.'
 
   deploy:
     name: Deploy Locally with Docker Compose
@@ -84,60 +82,123 @@ jobs:
     runs-on: self-hosted
     defaults:
       run:
-        working-directory: .
-    env:
-      AD_SERVER: ${{ secrets.AD_SERVER }}
-      AD_BASE_DN: ${{ secrets.AD_BASE_DN }}
+        working-directory: C:\Users\nds-25217\Desktop\PlaybookChatbot
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Create .env file from GitHub Secrets
+      - name: Verify .env exists in project folder
         run: |
-          @"
-          APP_ENV=development
-          LOG_LEVEL=INFO
-          DATA_DIR=
-          ENABLE_CHAT=true
-          ENABLE_RELOAD=true
-          ENABLE_DEBUG_ENDPOINTS=false
-          ENABLE_META_ENDPOINT=true
-          ENABLE_ACCESS_CONTROL=true
-          MAINTENANCE_MODE=false
-          MAINTENANCE_MESSAGE=The playbook is currently under maintenance. Please try again shortly.
-          AD_SERVER=$env:AD_SERVER
-          AD_BASE_DN=$env:AD_BASE_DN
-          VITE_API_URL=http://localhost:8001/api
-          AD_BIND_USER=
-          AD_BIND_PASSWORD=
-          "@ | Out-File -FilePath .env -Encoding UTF8
-          Write-Output "✅ .env created from secrets"
+          $envPath = "C:\Users\nds-25217\Desktop\PlaybookChatbot\.env"
+          if (-Not (Test-Path $envPath)) {
+            Write-Output "ERROR: .env not found at $envPath"
+            Write-Output "Please create the .env file in your project folder first."
+            exit 1
+          }
+          Write-Output "✅ .env found at $envPath"
+          Write-Output "--- .env contents (secrets masked) ---"
+          Get-Content $envPath | ForEach-Object {
+            if ($_ -match "^(AD_BIND_USER|AD_BIND_PASSWORD)=(.+)") {
+              "$($Matches[1])=***"
+            } else {
+              $_
+            }
+          }
 
-      - name: Validate .env
+      - name: Copy local .env to workspace
         run: |
-          if (-Not (Test-Path .env)) { Write-Output "ERROR: .env failed"; exit 1 }
-          Write-Output "✅ .env validated"
+          $src = "C:\Users\nds-25217\Desktop\PlaybookChatbot\.env"
+          $dst = "${{ github.workspace }}\.env"
+          if ($src -ne $dst) {
+            Copy-Item $src $dst -Force
+            Write-Output "✅ .env copied to workspace"
+          } else {
+            Write-Output "✅ .env already in workspace"
+          }
 
-      - name: Deploy with Docker Compose
+      - name: Stop existing containers
+        working-directory: C:\Users\nds-25217\Desktop\PlaybookChatbot
         run: |
-          docker-compose down
+          docker-compose down --remove-orphans
+          Write-Output "✅ Old containers stopped"
+
+      - name: Build and start services
+        working-directory: C:\Users\nds-25217\Desktop\PlaybookChatbot
+        run: |
           docker-compose up --build -d
+          if ($LASTEXITCODE -ne 0) {
+            Write-Output "ERROR: docker-compose up failed"
+            exit 1
+          }
           Write-Output "✅ Docker Compose started"
 
-      - name: Verify services
+      - name: Wait for backend health check
+        working-directory: C:\Users\nds-25217\Desktop\PlaybookChatbot
         run: |
-          Start-Sleep -Seconds 10
-          docker-compose ps
+          Write-Output "Waiting for backend to become healthy..."
+          $maxWait = 90
+          $elapsed = 0
+          $interval = 5
+          while ($elapsed -lt $maxWait) {
+            $status = docker inspect --format="{{.State.Health.Status}}" playbook_backend 2>$null
+            Write-Output "[$elapsed s] Backend health: $status"
+            if ($status -eq "healthy") {
+              Write-Output "✅ Backend is healthy!"
+              break
+            }
+            if ($status -eq "unhealthy") {
+              Write-Output "❌ Backend is unhealthy. Dumping logs..."
+              docker logs playbook_backend
+              docker inspect --format="{{json .State.Health}}" playbook_backend
+              exit 1
+            }
+            Start-Sleep -Seconds $interval
+            $elapsed += $interval
+          }
+          if ($elapsed -ge $maxWait) {
+            Write-Output "❌ Backend did not become healthy in ${maxWait}s. Dumping logs..."
+            docker logs playbook_backend
+            docker inspect --format="{{json .State.Health}}" playbook_backend
+            exit 1
+          }
 
-      - name: Cleanup .env
+      - name: Show running services
+        working-directory: C:\Users\nds-25217\Desktop\PlaybookChatbot
         if: always()
         run: |
-          if (Test-Path .env) { Remove-Item .env -Force; Write-Output "✅ .env cleaned up" }
+          Write-Output "=== Container Status ==="
+          docker-compose ps
+          Write-Output "=== Backend Logs (last 30 lines) ==="
+          docker logs playbook_backend --tail 30
+
+      - name: Cleanup copied .env from workspace
+        if: always()
+        run: |
+          $dst = "${{ github.workspace }}\.env"
+          $src = "C:\Users\nds-25217\Desktop\PlaybookChatbot\.env"
+          if ($dst -ne $src -and (Test-Path $dst)) {
+            Remove-Item $dst -Force
+            Write-Output "✅ .env cleaned up from workspace"
+          }
 
   summary:
     name: Workflow Summary
     needs: [build-backend, build-frontend, deploy]
     runs-on: self-hosted
+    if: always()
     steps:
       - name: Print summary
-        run: Write-Output 'CI/CD workflow finished. Check previous job logs for details.'
+        run: |
+          Write-Output "=========================================="
+          Write-Output "CI/CD Workflow Summary"
+          Write-Output "=========================================="
+          Write-Output "Backend Build : ${{ needs.build-backend.result }}"
+          Write-Output "Frontend Build: ${{ needs.build-frontend.result }}"
+          Write-Output "Deployment    : ${{ needs.deploy.result }}"
+          Write-Output "=========================================="
+          if ("${{ needs.deploy.result }}" -eq "success") {
+            Write-Output "✅ All jobs passed. Services are running!"
+          } else {
+            Write-Output "❌ Deployment failed. Check the deploy job logs above."
+            exit 1
+          }
