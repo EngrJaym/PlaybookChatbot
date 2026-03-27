@@ -39,7 +39,6 @@ jobs:
       - name: Lint backend
         run: |
           pip install flake8
-          [f
           flake8 .
 
       - name: Run backend tests
