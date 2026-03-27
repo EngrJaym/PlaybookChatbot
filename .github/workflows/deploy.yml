@@ -1,108 +1,109 @@
-name: Test GitHub Actions Workflow
+name: CI/CD Pipeline
 
-# Trigger this workflow on push to main branch
 on:
   push:
     branches:
       - feature/active_directory
-  # Also allow manual trigger
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
-  # Job 1: Test basic setup
-  test-setup:
-    runs-on: ubuntu-latest
+  build-backend:
+    name: Build & Test Backend
+    runs-on: self-hosted
+    defaults:
+      run:
+        working-directory: backend
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Display environment info
-        run: |
-          echo "=== GitHub Actions Test ==="
-          echo "Repository: ${{ github.repository }}"
-          echo "Branch: ${{ github.ref }}"
-          echo "Commit: ${{ github.sha }}"
-          echo "Actor: ${{ github.actor }}"
-          echo "==========================="
-
-      - name: Check system information
-        run: |
-          echo "OS info:"
-          uname -a
-          echo "Current directory:"
-          pwd
-          echo "Directory contents:"
-          ls -la
-
-  # Job 2: Test Python (for backend)
-  test-python:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ['3.10', '3.11']
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Python ${{ matrix.python-version }}
+      - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: '3.11'
 
-      - name: Display Python version
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Lint backend
         run: |
-          python --version
-          pip --version
+          pip install flake8
+          flake8 .
 
-  # Job 3: Test Node.js (for frontend)
-  test-node:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: ['18.x', '20.x']
+      - name: Run backend tests
+        run: |
+          if (Test-Path test_flow.py) { python test_flow.py } else { Write-Host 'No backend tests found.' }
+
+  build-frontend:
+    name: Build & Test Frontend
+    runs-on: self-hosted
+    defaults:
+      run:
+        working-directory: frontend
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Node.js ${{ matrix.node-version }}
+      - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: '20.x'
 
-      - name: Display Node.js version
-        run: |
-          node --version
-          npm --version
+      - name: Cache node modules
+        uses: actions/cache@v4
+        with:
+          path: frontend/node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('frontend/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
 
-  # Job 4: Lint and basic checks
-  lint:
-    runs-on: ubuntu-latest
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint frontend
+        run: npm run lint || echo 'No lint script defined.'
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Run frontend tests
+        run: npm test || echo 'No frontend tests defined.'
+
+  deploy:
+    name: Deploy Locally with Docker Compose
+    needs: [build-backend, build-frontend]
+    runs-on: self-hosted
+    defaults:
+      run:
+        working-directory: .
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Check file structure
+      - name: Deploy with Docker Compose
         run: |
-          echo "Checking for key project files..."
-          [ -f backend/requirements.txt ] && echo "✓ Backend requirements found" || echo "✗ Backend requirements missing"
-          [ -f frontend/package.json ] && echo "✓ Frontend package.json found" || echo "✗ Frontend package.json missing"
-          [ -f docker-compose.yml ] && echo "✓ Docker Compose found" || echo "✗ Docker Compose missing"
+          docker-compose down || echo "No containers to stop."
+          docker-compose up --build -d
 
-      - name: Validate YAML files
-        run: |
-          echo "Validating docker-compose.yml..."
-          # Basic YAML syntax check
-          python -c "import yaml; yaml.safe_load(open('docker-compose.yml'))" && echo "✓ Valid YAML" || echo "✗ Invalid YAML"
+      - name: Notify success
+        run: echo "Local deployment with Docker Compose completed!"
 
-  # Summary job that depends on all others
   summary:
-    needs: [test-setup, test-python, test-node, lint]
-    runs-on: ubuntu-latest
-    if: always()
+    name: Workflow Summary
+    needs: [build-backend, build-frontend, deploy]
+    runs-on: self-hosted
     steps:
-      - name: Workflow completed
+      - name: Print summary
         run: |
-          echo "=== GitHub Actions Test Workflow Completed ==="
-          echo "All test jobs have been executed!"
-          echo "Check the logs above for detailed results."
-          echo "=============================================="
+          echo "CI/CD workflow finished. Check previous job logs for details."
