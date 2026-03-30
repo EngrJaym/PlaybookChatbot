@@ -2,203 +2,261 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches:
-      - feature/active_directory
+    branches: feature/active_directory
   pull_request:
-    branches:
-      - main
+    branches: feature/active_directory
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  PYTHON_VERSION: ${{ vars.PYTHON_VERSION || '3.11' }}
+  NODE_VERSION: ${{ vars.NODE_VERSION || '20.x' }}
+  PROJECT_PATH: ${{ vars.PROJECT_PATH }}
+  BACKEND_CONTAINER: playbook_backend
+  FRONTEND_CONTAINER: playbook_frontend
+  HEALTH_CHECK_TIMEOUT: ${{ vars.HEALTH_CHECK_TIMEOUT || '90' }}
+  HEALTH_CHECK_INTERVAL: ${{ vars.HEALTH_CHECK_INTERVAL || '5' }}
+
 jobs:
-  build-backend:
-    name: Build & Test Backend
+  backend:
+    name: "Backend · Lint & Test"
     runs-on: self-hosted
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: backend
+
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: ${{ env.PYTHON_VERSION }}
 
-      - name: Cache pip dependencies
+      - name: Cache pip
         uses: actions/cache@v4
         with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
+          path: ~\AppData\Local\pip\Cache
+          key: pip-${{ runner.os }}-${{ hashFiles('backend/requirements.txt') }}
+          restore-keys: pip-${{ runner.os }}-
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
-      - name: Lint backend
+      - name: Lint with flake8
         run: |
           pip install flake8
-          flake8 .
+          flake8 . --count --statistics
 
-      - name: Run backend tests
-        run: Write-Output 'No backend tests defined. Skipping test step.'
+      - name: Run tests
+        run: |
+          if (Test-Path "test_*.py") {
+            pip install pytest
+            pytest -v
+          } else {
+            Write-Output "No test files found. Skipping."
+          }
 
-  build-frontend:
-    name: Build & Test Frontend
+  frontend:
+    name: "Frontend · Lint & Build"
     runs-on: self-hosted
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: frontend
+
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
         uses: actions/setup-node@v4
         with:
-          node-version: '20.x'
+          node-version: ${{ env.NODE_VERSION }}
 
-      - name: Cache node modules
+      - name: Cache node_modules
         uses: actions/cache@v4
         with:
           path: frontend/node_modules
-          key: ${{ runner.os }}-node-${{ hashFiles('frontend/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-node-
+          key: node-${{ runner.os }}-${{ hashFiles('frontend/package-lock.json') }}
+          restore-keys: node-${{ runner.os }}-
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Build frontend
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
         run: npm run build
 
-      - name: Run frontend tests
-        run: Write-Output 'No frontend tests defined.'
+      - name: Run tests
+        run: |
+          $pkg = Get-Content package.json | ConvertFrom-Json
+          if ($pkg.scripts.test) { npm test } else { Write-Output "No test script defined. Skipping." }
 
   deploy:
-    name: Deploy Locally with Docker Compose
-    needs: [build-backend, build-frontend]
+    name: "Deploy · Docker Compose"
     runs-on: self-hosted
-    defaults:
-      run:
-        working-directory: C:\Users\nds-25217\Desktop\PlaybookChatbot
+    needs: [backend, frontend]
+    timeout-minutes: 15
+    if: github.event_name != 'pull_request'
+
+    env:
+      AD_BIND_USER: ${{ secrets.AD_BIND_USER }}
+      AD_BIND_PASSWORD: ${{ secrets.AD_BIND_PASSWORD }}
+
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Verify .env exists in project folder
+      - name: Validate required secrets
         run: |
-          $envPath = "C:\Users\nds-25217\Desktop\PlaybookChatbot\.env"
-          if (-Not (Test-Path $envPath)) {
-            Write-Output "ERROR: .env not found at $envPath"
-            Write-Output "Please create the .env file in your project folder first."
+          $missing = @()
+          if ([string]::IsNullOrEmpty($env:AD_BIND_USER))    { $missing += "AD_BIND_USER" }
+          if ([string]::IsNullOrEmpty($env:AD_BIND_PASSWORD)) { $missing += "AD_BIND_PASSWORD" }
+          if ($missing.Count -gt 0) {
+            Write-Error "Missing GitHub Secrets: $($missing -join ', '). Set them in Settings > Secrets > Actions."
             exit 1
           }
-          Write-Output "✅ .env found at $envPath"
-          Write-Output "--- .env contents (secrets masked) ---"
-          Get-Content $envPath | ForEach-Object {
-            if ($_ -match "^(AD_BIND_USER|AD_BIND_PASSWORD)=(.+)") {
-              "$($Matches[1])=***"
-            } else {
-              $_
-            }
-          }
+          Write-Output "All required secrets are present."
 
-      - name: Copy local .env to workspace
+      - name: Generate .env from secrets and config
         run: |
-          $src = "C:\Users\nds-25217\Desktop\PlaybookChatbot\.env"
-          $dst = "${{ github.workspace }}\.env"
-          if ($src -ne $dst) {
-            Copy-Item $src $dst -Force
-            Write-Output "✅ .env copied to workspace"
-          } else {
-            Write-Output "✅ .env already in workspace"
-          }
+          $envPath = Join-Path "${{ env.PROJECT_PATH }}" ".env"
+          $content = @"
+          APP_ENV=production
+          LOG_LEVEL=INFO
+          DATA_DIR=/data
+          ENABLE_CHAT=true
+          ENABLE_RELOAD=false
+          ENABLE_DEBUG_ENDPOINTS=false
+          ENABLE_META_ENDPOINT=true
+          ENABLE_ACCESS_CONTROL=true
+          MAINTENANCE_MODE=false
+          MAINTENANCE_MESSAGE=The playbook is currently under maintenance. Please try again shortly.
+          AD_SERVER=${{ vars.AD_SERVER || 'samba-ad.ad.one-nds.net' }}
+          AD_BASE_DN=${{ vars.AD_BASE_DN || 'DC=ad,DC=one-nds,DC=net' }}
+          AD_BIND_USER=${{ secrets.AD_BIND_USER }}
+          AD_BIND_PASSWORD=${{ secrets.AD_BIND_PASSWORD }}
+          "@
+          $content -replace '(?m)^\s+', '' | Set-Content -Path $envPath -Encoding UTF8 -Force
+          Write-Output ".env generated at $envPath"
 
       - name: Stop existing containers
-        working-directory: C:\Users\nds-25217\Desktop\PlaybookChatbot
+        working-directory: ${{ env.PROJECT_PATH }}
         run: |
-          docker-compose down --remove-orphans
-          Write-Output "✅ Old containers stopped"
+          docker-compose down --remove-orphans 2>$null
+          Write-Output "Old containers removed."
 
       - name: Build and start services
-        working-directory: C:\Users\nds-25217\Desktop\PlaybookChatbot
+        working-directory: ${{ env.PROJECT_PATH }}
         run: |
           docker-compose up --build -d
-          if ($LASTEXITCODE -ne 0) {
-            Write-Output "ERROR: docker-compose up failed"
-            exit 1
-          }
-          Write-Output "✅ Docker Compose started"
+          if ($LASTEXITCODE -ne 0) { Write-Error "docker-compose up failed"; exit 1 }
+          Write-Output "Services started."
 
       - name: Wait for backend health check
-        working-directory: C:\Users\nds-25217\Desktop\PlaybookChatbot
+        working-directory: ${{ env.PROJECT_PATH }}
         run: |
-          Write-Output "Waiting for backend to become healthy..."
-          $maxWait = 90
-          $elapsed = 0
-          $interval = 5
-          while ($elapsed -lt $maxWait) {
-            $status = docker inspect --format="{{.State.Health.Status}}" playbook_backend 2>$null
-            Write-Output "[$elapsed s] Backend health: $status"
-            if ($status -eq "healthy") {
-              Write-Output "✅ Backend is healthy!"
-              break
+          $timeout  = [int]$env:HEALTH_CHECK_TIMEOUT
+          $interval = [int]$env:HEALTH_CHECK_INTERVAL
+          $elapsed  = 0
+
+          Write-Output "Waiting up to ${timeout}s for ${{ env.BACKEND_CONTAINER }}..."
+
+          while ($elapsed -lt $timeout) {
+            $status = docker inspect --format="{{.State.Health.Status}}" ${{ env.BACKEND_CONTAINER }} 2>$null
+
+            switch ($status) {
+              "healthy" {
+                Write-Output "Backend healthy after ${elapsed}s."
+                exit 0
+              }
+              "unhealthy" {
+                Write-Error "Backend unhealthy."
+                docker logs --tail 50 ${{ env.BACKEND_CONTAINER }}
+                exit 1
+              }
             }
-            if ($status -eq "unhealthy") {
-              Write-Output "❌ Backend is unhealthy. Dumping logs..."
-              docker logs playbook_backend
-              docker inspect --format="{{json .State.Health}}" playbook_backend
-              exit 1
-            }
+
+            Write-Output "  [${elapsed}s] status=$status"
             Start-Sleep -Seconds $interval
             $elapsed += $interval
           }
-          if ($elapsed -ge $maxWait) {
-            Write-Output "❌ Backend did not become healthy in ${maxWait}s. Dumping logs..."
-            docker logs playbook_backend
-            docker inspect --format="{{json .State.Health}}" playbook_backend
+
+          Write-Error "Health-check timed out after ${timeout}s."
+          docker logs --tail 50 ${{ env.BACKEND_CONTAINER }}
+          exit 1
+
+      - name: Smoke test API
+        run: |
+          try {
+            $response = Invoke-WebRequest -Uri "http://localhost:8001/" -UseBasicParsing -TimeoutSec 10
+            Write-Output "Smoke test passed (HTTP $($response.StatusCode))."
+          } catch {
+            Write-Error "Smoke test failed: $_"
             exit 1
           }
 
       - name: Show running services
-        working-directory: C:\Users\nds-25217\Desktop\PlaybookChatbot
         if: always()
+        working-directory: ${{ env.PROJECT_PATH }}
         run: |
           Write-Output "=== Container Status ==="
           docker-compose ps
+          Write-Output ""
           Write-Output "=== Backend Logs (last 30 lines) ==="
-          docker logs playbook_backend --tail 30
+          docker logs --tail 30 ${{ env.BACKEND_CONTAINER }}
 
-      - name: Cleanup copied .env from workspace
+      - name: Cleanup generated .env
         if: always()
         run: |
-          $dst = "${{ github.workspace }}\.env"
-          $src = "C:\Users\nds-25217\Desktop\PlaybookChatbot\.env"
-          if ($dst -ne $src -and (Test-Path $dst)) {
-            Remove-Item $dst -Force
-            Write-Output "✅ .env cleaned up from workspace"
+          $envPath = Join-Path "${{ env.PROJECT_PATH }}" ".env"
+          if (Test-Path $envPath) {
+            Remove-Item $envPath -Force
+            Write-Output ".env removed from disk."
           }
 
   summary:
-    name: Workflow Summary
-    needs: [build-backend, build-frontend, deploy]
+    name: "Summary"
     runs-on: self-hosted
+    needs: [backend, frontend, deploy]
     if: always()
+
     steps:
-      - name: Print summary
+      - name: Pipeline result
         run: |
+          $be = "${{ needs.backend.result }}"
+          $fe = "${{ needs.frontend.result }}"
+          $dp = "${{ needs.deploy.result }}"
+
           Write-Output "=========================================="
-          Write-Output "CI/CD Workflow Summary"
+          Write-Output "  CI/CD Pipeline Summary"
           Write-Output "=========================================="
-          Write-Output "Backend Build : ${{ needs.build-backend.result }}"
-          Write-Output "Frontend Build: ${{ needs.build-frontend.result }}"
-          Write-Output "Deployment    : ${{ needs.deploy.result }}"
+          Write-Output "  Backend  : $be"
+          Write-Output "  Frontend : $fe"
+          Write-Output "  Deploy   : $dp"
+          Write-Output "  Actor    : ${{ github.actor }}"
+          Write-Output "  Branch   : ${{ github.ref_name }}"
+          Write-Output "  Commit   : ${{ github.sha }}"
           Write-Output "=========================================="
-          if ("${{ needs.deploy.result }}" -eq "success") {
-            Write-Output "✅ All jobs passed. Services are running!"
+
+          if ($dp -eq "success") {
+            Write-Output "All jobs passed. Services are live!"
+          } elseif ($dp -eq "skipped") {
+            Write-Output "Deploy skipped (PR build-only mode)."
           } else {
-            Write-Output "❌ Deployment failed. Check the deploy job logs above."
+            Write-Output "Pipeline failed. Review the logs above."
             exit 1
           }
