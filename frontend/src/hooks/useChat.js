@@ -52,7 +52,7 @@ export default function useChat() {
                 const body = await res.json();
                 const m = (body?.detail || "").match(/'([^']+)'/);
                 username = m ? m[1] : null;
-              } catch (e) {
+              } catch {
                 // intentionally left blank
               }
               setAdUsername(username);

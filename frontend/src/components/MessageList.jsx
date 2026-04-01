@@ -40,10 +40,10 @@ function FormatText({ text }) {
       return;
     }
 
-    if (/^[-\-]\s/.test(trimmed)) {
+    if (/^[•-]\s/.test(trimmed)) {
       if (listType !== "ul") flushList();
       listType = "ul";
-      listItems.push(<li key={i}>{formatInline(trimmed.replace(/^[-\-]\s*/, ""))}</li>);
+      listItems.push(<li key={i}>{formatInline(trimmed.replace(/^[•-]\s*/, ""))}</li>);
       return;
     }
 
