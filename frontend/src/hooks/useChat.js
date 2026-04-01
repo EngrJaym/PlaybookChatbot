@@ -52,7 +52,9 @@ export default function useChat() {
                 const body = await res.json();
                 const m = (body?.detail || "").match(/'([^']+)'/);
                 username = m ? m[1] : null;
-              } catch {}
+              } catch (e) {
+                // intentionally left blank
+              }
               setAdUsername(username);
               setAccessState("not_registered");
             } else {
